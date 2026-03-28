@@ -4,6 +4,7 @@ using RealmLauncher.Services;
 using RealmLauncher.Views;
 using System;
 using System.Configuration;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -49,6 +50,7 @@ namespace RealmLauncher
         private TextBlock lblStatus => MainPage.lblStatus;
         private ProgressBar progressMods => MainPage.progressMods;
         private Button btnPlay => MainPage.btnPlay;
+        private Button btnDiscord => MainPage.btnDiscord;
 
         private TextBox txtConanExe => SettingsPage.txtConanExe;
         private CheckBox chkDisableIntro => SettingsPage.chkDisableIntro;
@@ -87,9 +89,37 @@ namespace RealmLauncher
         private void WirePageEvents()
         {
             MainPage.btnPlay.Click += BtnPlay_OnClick;
+            MainPage.btnDiscord.Click += BtnOpenDiscord_OnClick;
             SettingsPage.btnCheckSteamCmd.Click += BtnCheckSteamCmd_OnClick;
             SettingsPage.btnCheckUpdates.Click += BtnCheckUpdates_OnClick;
             SettingsPage.btnBrowseConanExe.Click += BtnBrowseConanExe_OnClick;
+        }
+
+        private void BtnOpenDiscord_OnClick(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var url = ConfigurationManager.AppSettings["DiscordInviteUrl"] ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(url))
+                {
+                    MessageBox.Show(this,
+                        "Ссылка Discord не задана. Добавь ключ DiscordInviteUrl в App.config.",
+                        "REALM RolePlay Launcher",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                    return;
+                }
+
+                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this,
+                    "Не удалось открыть ссылку Discord:\n" + ex.Message,
+                    "REALM RolePlay Launcher",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -461,6 +491,7 @@ namespace RealmLauncher
             btnCheckSteamCmd.IsEnabled = enabled;
             btnBrowseConanExe.IsEnabled = enabled;
             btnPlay.IsEnabled = enabled;
+            btnDiscord.IsEnabled = enabled;
             btnBackToMain.IsEnabled = enabled;
             btnOpenSettings.IsEnabled = enabled;
         }

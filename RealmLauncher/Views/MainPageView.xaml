@@ -28,7 +28,7 @@
 			<TextBlock Canvas.Left="103" Canvas.Top="34" Width="230" TextAlignment="Center" Text="Новости обновлений" Foreground="{DynamicResource TextMain}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Top"/>
 			<Rectangle Canvas.Left="62" Canvas.Top="61" Width="312" Height="3" Fill="#031531"/>
 			<Border Canvas.Left="38" Canvas.Top="72" Width="360" Height="384" CornerRadius="45" Background="{DynamicResource PanelFill}"/>
-        <TextBox x:Name="txtNews" x:FieldModifier="public"
+			<TextBox x:Name="txtNews" x:FieldModifier="public"
                      Canvas.Left="62" Canvas.Top="98" Width="312" Height="336"
                      IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
                      Style="{DynamicResource RoundedLogTextBoxStyle}"
@@ -44,19 +44,25 @@
                     Content="Запуск игры" Style="{DynamicResource PillButtonStyle}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
 
 			<TextBlock x:Name="lblSteamCmdStatus" x:FieldModifier="public"
-                       Canvas.Left="62" Canvas.Top="488" Width="220"
-                       Foreground="{DynamicResource TextMuted}" FontSize="12" Text="SteamCMD: неизвестно" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+                       Canvas.Left="513" Canvas.Top="155" Width="220"
+                       Foreground="{DynamicResource TextMuted}" FontSize="12" Text="SteamCMD: неизвестно" HorizontalAlignment="Left" VerticalAlignment="Top"/>
 
 			<Border Canvas.Left="470" Canvas.Top="144" Width="365" Height="312" CornerRadius="45" Background="{DynamicResource PanelFill}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
-        <TextBox x:Name="txtLog" x:FieldModifier="public"
+			<TextBox x:Name="txtLog" x:FieldModifier="public"
                      Canvas.Left="492" Canvas.Top="176" Width="322" Height="258"
                      IsReadOnly="True" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"
                      Style="{DynamicResource RoundedLogTextBoxStyle}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+			<Button x:Name="btnDiscord" x:FieldModifier="public"
+                    Canvas.Left="24" Canvas.Top="480"
+                    Width="67"
+                    Height="30"
+                    Content="Discord"
+                    Style="{DynamicResource PillButtonStyle}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
 
 			<TextBlock x:Name="lblStatus" x:FieldModifier="public"
                        Canvas.Left="353" Canvas.Top="486" Width="220" TextAlignment="Right"
                        Text="Загрузка..." Foreground="{DynamicResource TextMain}" FontSize="14" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-            <ProgressBar x:Name="progressMods" x:FieldModifier="public"
+			<ProgressBar x:Name="progressMods" x:FieldModifier="public"
                          Canvas.Left="578" Canvas.Top="489" Width="258" Height="12"
                          Minimum="0" Maximum="1000" Value="0"
                          Foreground="#4A87EA" Background="#1B2F5C"
