@@ -39,7 +39,6 @@
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="System" />
-    <Reference Include="System.Configuration" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
     <Reference Include="System.IO.Compression" />
@@ -104,6 +103,9 @@
     <Compile Include="..\Services\LauncherService.cs">
       <Link>Services\LauncherService.cs</Link>
     </Compile>
+    <Compile Include="..\Services\AppRuntimeConfig.cs">
+      <Link>Services\AppRuntimeConfig.cs</Link>
+    </Compile>
     <Compile Include="..\Services\UrlSecurity.cs">
       <Link>Services\UrlSecurity.cs</Link>
     </Compile>
@@ -113,7 +115,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

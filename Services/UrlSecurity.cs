@@ -1,27 +1,16 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Linq;
 
 namespace RealmLauncher.Services
 {
     public static class UrlSecurity
     {
-        private static readonly string[] DefaultHosts =
+        public static HashSet<string> LoadAllowedHosts(IEnumerable<string> hosts)
         {
-            "gist.githubusercontent.com",
-            "github.com",
-            "api.steampowered.com",
-            "steamcdn-a.akamaihd.net",
-            "discord.gg"
-        };
-
-        public static HashSet<string> LoadAllowedHostsFromConfig()
-        {
-            var raw = ConfigurationManager.AppSettings["AllowedRemoteHosts"];
-            var items = string.IsNullOrWhiteSpace(raw)
-                ? DefaultHosts
-                : raw.Split(new[] { ',', ';', '\n', '\r', '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            var items = (hosts ?? Enumerable.Empty<string>())
+                .Select(x => x ?? string.Empty)
+                .Where(x => !string.IsNullOrWhiteSpace(x));
 
             return new HashSet<string>(
                 items
@@ -34,24 +23,23 @@ namespace RealmLauncher.Services
         {
             if (string.IsNullOrWhiteSpace(url))
             {
-                throw new InvalidOperationException(label + ": ссылка не задана.");
+                throw new InvalidOperationException(label + ": URL is empty.");
             }
 
             Uri uri;
             if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out uri))
             {
-                throw new InvalidOperationException(label + ": некорректный URL.");
+                throw new InvalidOperationException(label + ": invalid URL.");
             }
 
             if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
             {
-                throw new InvalidOperationException(label + ": разрешен только HTTPS.");
+                throw new InvalidOperationException(label + ": only HTTPS is allowed.");
             }
 
             if (allowedHosts != null && allowedHosts.Count > 0 && !IsHostAllowed(uri.Host, allowedHosts))
             {
-                throw new InvalidOperationException(
-                    label + ": хост '" + uri.Host + "' не входит в список AllowedRemoteHosts.");
+                throw new InvalidOperationException(label + ": host '" + uri.Host + "' is not in AllowedRemoteHosts.");
             }
 
             return uri;

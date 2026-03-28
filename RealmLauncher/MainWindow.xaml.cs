@@ -1,9 +1,8 @@
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using RealmLauncher.Models;
 using RealmLauncher.Services;
 using RealmLauncher.Views;
 using System;
-using System.Configuration;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -35,7 +34,7 @@ namespace RealmLauncher
 
         private readonly LauncherService _launcherService = new LauncherService();
         private readonly LauncherUpdateService _updateService = new LauncherUpdateService();
-        private readonly System.Collections.Generic.HashSet<string> _allowedHosts = UrlSecurity.LoadAllowedHostsFromConfig();
+        private readonly System.Collections.Generic.HashSet<string> _allowedHosts = AppRuntimeConfig.BuildAllowedHosts();
         private readonly HttpClient _httpClient = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(12)
@@ -100,7 +99,7 @@ namespace RealmLauncher
         {
             try
             {
-                var url = ConfigurationManager.AppSettings["DiscordInviteUrl"] ?? string.Empty;
+                var url = AppRuntimeConfig.DiscordInviteUrl;
                 var discordUri = UrlSecurity.RequireAllowedHttpsUrl(url, _allowedHosts, "DiscordInviteUrl");
                 Process.Start(new ProcessStartInfo(discordUri.AbsoluteUri) { UseShellExecute = true });
             }
@@ -173,7 +172,7 @@ namespace RealmLauncher
         private void LoadSettings()
         {
             _settings = LauncherSettings.Load();
-            var defaultConfigUrl = ConfigurationManager.AppSettings["ServerConfigUrl"] ?? string.Empty;
+            var defaultConfigUrl = AppRuntimeConfig.ServerConfigUrl;
             txtConfigUrl.Text = !string.IsNullOrWhiteSpace(_settings.ConfigUrl)
                 ? _settings.ConfigUrl
                 : defaultConfigUrl;
@@ -223,10 +222,10 @@ namespace RealmLauncher
 
         private async Task LoadNewsAsync()
         {
-            var newsUrl = ConfigurationManager.AppSettings["NewsFeedUrl"] ?? string.Empty;
+            var newsUrl = AppRuntimeConfig.NewsFeedUrl;
             if (string.IsNullOrWhiteSpace(newsUrl))
             {
-                txtNews.Text = "URL новостей не задан.\n\nДобавь ключ NewsFeedUrl в App.config и укажи raw-ссылку на Gist.";
+                txtNews.Text = "URL новостей не задан.\n\nДобавь ключ NewsFeedUrl в AppRuntimeConfig и укажи raw-ссылку на Gist.";
                 return;
             }
 
@@ -639,12 +638,12 @@ namespace RealmLauncher
 
         private async Task CheckLauncherUpdateAsync(bool userInitiated)
         {
-            var manifestUrl = ConfigurationManager.AppSettings["UpdateManifestUrl"] ?? string.Empty;
+            var manifestUrl = AppRuntimeConfig.UpdateManifestUrl;
             if (string.IsNullOrWhiteSpace(manifestUrl))
             {
                 if (userInitiated)
                 {
-                    MessageBox.Show(this, "URL манифеста обновлений не задан (UpdateManifestUrl в App.config).",
+                    MessageBox.Show(this, "URL манифеста обновлений не задан (UpdateManifestUrl в AppRuntimeConfig).",
                         "Проверка обновлений", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
                 return;
@@ -776,3 +775,6 @@ namespace RealmLauncher
         }
     }
 }
+
+
+
