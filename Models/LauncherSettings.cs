@@ -8,6 +8,7 @@ namespace RealmLauncher.Models
 {
     public sealed class LauncherSettings
     {
+        [JsonIgnore]
         public string ConfigUrl { get; set; }
         public string ConanExePath { get; set; }
 
