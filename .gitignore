@@ -2,3 +2,6 @@
 /packages
 /obj
 /.vs
+update-manifest.json
+tools/command.txt
+*.zip

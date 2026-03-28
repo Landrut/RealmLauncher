@@ -31,7 +31,7 @@ $manifest = [ordered]@{
 $json = $manifest | ConvertTo-Json -Depth 5
 Set-Content -Path $OutPath -Value $json -Encoding UTF8
 
-Write-Host "Готово:"
+Write-Host "Done:"
 Write-Host "Version : $Version"
 Write-Host "Size    : $size bytes"
 Write-Host "SHA256  : $sha"

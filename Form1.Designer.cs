@@ -74,7 +74,7 @@
             // 
             // btnCheckUpdates
             // 
-            this.btnCheckUpdates.Location = new System.Drawing.Point(300, 78);
+            this.btnCheckUpdates.Location = new System.Drawing.Point(400, 78);
             this.btnCheckUpdates.Name = "btnCheckUpdates";
             this.btnCheckUpdates.Size = new System.Drawing.Size(244, 32);
             this.btnCheckUpdates.TabIndex = 4;
@@ -84,9 +84,9 @@
             // 
             // btnCheckSteamCmd
             // 
-            this.btnCheckSteamCmd.Location = new System.Drawing.Point(550, 78);
+            this.btnCheckSteamCmd.Location = new System.Drawing.Point(650, 78);
             this.btnCheckSteamCmd.Name = "btnCheckSteamCmd";
-            this.btnCheckSteamCmd.Size = new System.Drawing.Size(352, 32);
+            this.btnCheckSteamCmd.Size = new System.Drawing.Size(252, 32);
             this.btnCheckSteamCmd.TabIndex = 5;
             this.btnCheckSteamCmd.Text = "Проверить / Установить";
             this.btnCheckSteamCmd.UseVisualStyleBackColor = true;
