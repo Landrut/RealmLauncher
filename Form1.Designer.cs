@@ -144,7 +144,7 @@
             // chkDisableIntro
             // 
             this.chkDisableIntro.AutoSize = true;
-            this.chkDisableIntro.Location = new System.Drawing.Point(338, 244);
+            this.chkDisableIntro.Location = new System.Drawing.Point(423, 242);
             this.chkDisableIntro.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.chkDisableIntro.Name = "chkDisableIntro";
             this.chkDisableIntro.Size = new System.Drawing.Size(292, 24);
@@ -158,15 +158,16 @@
             this.chkAutoSubscribe.AutoSize = true;
             this.chkAutoSubscribe.Checked = true;
             this.chkAutoSubscribe.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chkAutoSubscribe.Location = new System.Drawing.Point(630, 244);
+            this.chkAutoSubscribe.Location = new System.Drawing.Point(721, 242);
             this.chkAutoSubscribe.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.chkAutoSubscribe.Name = "chkAutoSubscribe";
-            this.chkAutoSubscribe.Size = new System.Drawing.Size(421, 24);
+            this.chkAutoSubscribe.Size = new System.Drawing.Size(294, 24);
             this.chkAutoSubscribe.TabIndex = 11;
-            this.chkAutoSubscribe.Text = "Автоматически подписываться на моды Workshop";
+            this.chkAutoSubscribe.Text = "Авто-подписка на моды Workshop";
             this.toolTipOptions.SetToolTip(this.chkAutoSubscribe, "При запуске лаунчер автоматически устанавливает и обновляет моды Workshop из спис" +
         "ка сервера.");
             this.chkAutoSubscribe.UseVisualStyleBackColor = true;
+            this.chkAutoSubscribe.CheckedChanged += new System.EventHandler(this.chkAutoSubscribe_CheckedChanged);
             // 
             // btnPlay
             // 
@@ -205,14 +206,14 @@
             this.txtLog.Name = "txtLog";
             this.txtLog.ReadOnly = true;
             this.txtLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtLog.Size = new System.Drawing.Size(995, 239);
+            this.txtLog.Size = new System.Drawing.Size(995, 451);
             this.txtLog.TabIndex = 15;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1033, 660);
+            this.ClientSize = new System.Drawing.Size(1023, 870);
             this.Controls.Add(this.txtLog);
             this.Controls.Add(this.progressMods);
             this.Controls.Add(this.lblStatus);

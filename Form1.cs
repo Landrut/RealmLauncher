@@ -1,5 +1,9 @@
 ﻿using System;
 using System.Configuration;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -26,12 +30,175 @@ namespace RealmLauncher
         private readonly LauncherUpdateService _updateService = new LauncherUpdateService();
         private LauncherSettings _settings;
         private CancellationTokenSource _cts;
+        private bool _themeApplied;
 
         public Form1()
         {
             InitializeComponent();
+            ApplyTheme();
             LoadSettings();
             Shown += Form1_Shown;
+        }
+
+        private void ApplyTheme()
+        {
+            if (_themeApplied)
+            {
+                return;
+            }
+
+            _themeApplied = true;
+            SuspendLayout();
+
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
+            UpdateStyles();
+
+            var shiftY = 86;
+            var controlsToShift = Controls.Cast<Control>().ToList();
+            foreach (var control in controlsToShift)
+            {
+                control.Top += shiftY;
+            }
+
+            ClientSize = new Size(ClientSize.Width, ClientSize.Height + shiftY);
+            MinimumSize = new Size(660, 620);
+
+            BackColor = Color.FromArgb(20, 16, 14);
+            ForeColor = Color.FromArgb(240, 220, 178);
+            Font = new Font("Segoe UI", 9.5f, FontStyle.Regular);
+            Text = "REALM RolePlay Launcher";
+
+            var background = LoadFirstExistingImage(new[]
+            {
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "bg.jpg"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "bg.png"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "realm_bg.jpg"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "realm_bg.png")
+            });
+            if (background != null)
+            {
+                BackgroundImage = background;
+                BackgroundImageLayout = ImageLayout.Stretch;
+            }
+
+            var header = new HeaderPanel
+            {
+                Dock = DockStyle.Top,
+                Height = 86
+            };
+
+            var logoImage = LoadFirstExistingImage(new[]
+            {
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "logo.png"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "realm_logo.png"),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Assets", "realm-emblem.png")
+            });
+
+            if (logoImage != null)
+            {
+                var logo = new PictureBox
+                {
+                    Dock = DockStyle.Fill,
+                    Image = logoImage,
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    BackColor = Color.Transparent
+                };
+                header.Controls.Add(logo);
+            }
+
+            Controls.Add(header);
+            header.BringToFront();
+
+            ApplyControlTheme(Controls.Cast<Control>());
+            ResumeLayout();
+        }
+
+        private void ApplyControlTheme(IEnumerable<Control> controls)
+        {
+            foreach (var control in controls)
+            {
+                if (control is HeaderPanel)
+                {
+                    continue;
+                }
+
+                var label = control as Label;
+                var textBox = control as TextBox;
+                var checkBox = control as CheckBox;
+                var button = control as Button;
+                var progressBar = control as ProgressBar;
+
+                if (label != null)
+                {
+                    label.BackColor = Color.Transparent;
+                    label.ForeColor = Color.FromArgb(240, 222, 185);
+                    if (ReferenceEquals(label, lblStatus))
+                    {
+                        label.Font = new Font("Segoe UI Semibold", 10f, FontStyle.Bold);
+                    }
+                }
+                else if (textBox != null)
+                {
+                    textBox.BackColor = Color.FromArgb(40, 32, 28);
+                    textBox.ForeColor = Color.FromArgb(248, 237, 213);
+                    textBox.BorderStyle = BorderStyle.FixedSingle;
+                    if (ReferenceEquals(textBox, txtLog))
+                    {
+                        textBox.BackColor = Color.FromArgb(24, 20, 18);
+                        textBox.Font = new Font("Consolas", 10f, FontStyle.Regular);
+                    }
+                }
+                else if (checkBox != null)
+                {
+                    checkBox.BackColor = Color.Transparent;
+                    checkBox.ForeColor = Color.FromArgb(235, 219, 183);
+                }
+                else if (button != null)
+                {
+                    button.FlatStyle = FlatStyle.Flat;
+                    button.FlatAppearance.BorderSize = 1;
+                    button.FlatAppearance.BorderColor = Color.FromArgb(170, 127, 57);
+                    button.BackColor = Color.FromArgb(84, 56, 33);
+                    button.ForeColor = Color.FromArgb(255, 232, 190);
+                    button.Font = new Font("Segoe UI Semibold", 9.5f, FontStyle.Bold);
+                    button.Cursor = Cursors.Hand;
+                }
+                else if (progressBar != null)
+                {
+                    progressBar.ForeColor = Color.Gold;
+                }
+
+                if (control.HasChildren)
+                {
+                    ApplyControlTheme(control.Controls.Cast<Control>());
+                }
+            }
+        }
+
+        private static Image LoadFirstExistingImage(IEnumerable<string> paths)
+        {
+            foreach (var path in paths)
+            {
+                if (!File.Exists(path))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    {
+                        var source = Image.FromStream(fs);
+                        return new Bitmap(source);
+                    }
+                }
+                catch
+                {
+                    // Игнорируем невалидные картинки и пробуем следующую.
+                }
+            }
+
+            return null;
         }
 
         private void LoadSettings()
@@ -616,6 +783,38 @@ namespace RealmLauncher
             }
 
             return string.Format("{0:0.##} {1}", size, units[unit]);
+        }
+
+        private sealed class HeaderPanel : Panel
+        {
+            public HeaderPanel()
+            {
+                DoubleBuffered = true;
+                BackColor = Color.Transparent;
+            }
+
+            protected override void OnPaintBackground(PaintEventArgs e)
+            {
+                var rect = ClientRectangle;
+                using (var brush = new LinearGradientBrush(
+                    rect,
+                    Color.FromArgb(210, 25, 18, 16),
+                    Color.FromArgb(150, 13, 10, 9),
+                    LinearGradientMode.Vertical))
+                {
+                    e.Graphics.FillRectangle(brush, rect);
+                }
+
+                using (var pen = new Pen(Color.FromArgb(130, 176, 124, 56), 1))
+                {
+                    e.Graphics.DrawLine(pen, 0, rect.Height - 1, rect.Width, rect.Height - 1);
+                }
+            }
+        }
+
+        private void chkAutoSubscribe_CheckedChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }
