@@ -1,6 +1,7 @@
 using Microsoft.Win32;
 using RealmLauncher.Models;
 using RealmLauncher.Services;
+using RealmLauncher.Views;
 using System;
 using System.Configuration;
 using System.IO;
@@ -40,13 +41,55 @@ namespace RealmLauncher
         private LauncherSettings _settings;
         private CancellationTokenSource _cts;
 
+        private TextBox txtConfigUrl => MainPage.txtConfigUrl;
+        private PasswordBox txtServerPassword => MainPage.txtServerPassword;
+        private TextBox txtNews => MainPage.txtNews;
+        private TextBlock lblSteamCmdStatus => MainPage.lblSteamCmdStatus;
+        private TextBox txtLog => MainPage.txtLog;
+        private TextBlock lblStatus => MainPage.lblStatus;
+        private ProgressBar progressMods => MainPage.progressMods;
+        private Button btnPlay => MainPage.btnPlay;
+
+        private TextBox txtConanExe => SettingsPage.txtConanExe;
+        private CheckBox chkDisableIntro => SettingsPage.chkDisableIntro;
+        private CheckBox chkAutoSubscribe => SettingsPage.chkAutoSubscribe;
+        private Button btnCheckUpdates => SettingsPage.btnCheckUpdates;
+        private Button btnCheckSteamCmd => SettingsPage.btnCheckSteamCmd;
+        private Button btnBrowseConanExe => SettingsPage.btnBrowseConanExe;
+
         public MainWindow()
         {
             InitializeComponent();
+            WirePageEvents();
             ApplyThemeAssets();
             LoadSettings();
             ShowMainPage();
+            SizeChanged += MainWindow_SizeChanged;
+            Loaded += MainWindow_OnLoadedSetClip;
             Loaded += MainWindow_Loaded;
+        }
+
+        private void MainWindow_OnLoadedSetClip(object sender, RoutedEventArgs e)
+        {
+            UpdateWindowClip();
+        }
+
+        private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateWindowClip();
+        }
+
+        private void UpdateWindowClip()
+        {
+            Clip = new RectangleGeometry(new Rect(0, 0, ActualWidth, ActualHeight), 17, 17);
+        }
+
+        private void WirePageEvents()
+        {
+            MainPage.btnPlay.Click += BtnPlay_OnClick;
+            SettingsPage.btnCheckSteamCmd.Click += BtnCheckSteamCmd_OnClick;
+            SettingsPage.btnCheckUpdates.Click += BtnCheckUpdates_OnClick;
+            SettingsPage.btnBrowseConanExe.Click += BtnBrowseConanExe_OnClick;
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
@@ -108,7 +151,10 @@ namespace RealmLauncher
         private void LoadSettings()
         {
             _settings = LauncherSettings.Load();
-            txtConfigUrl.Text = _settings.ConfigUrl ?? string.Empty;
+            var defaultConfigUrl = ConfigurationManager.AppSettings["ServerConfigUrl"] ?? string.Empty;
+            txtConfigUrl.Text = !string.IsNullOrWhiteSpace(_settings.ConfigUrl)
+                ? _settings.ConfigUrl
+                : defaultConfigUrl;
             txtConanExe.Text = _settings.ConanExePath ?? string.Empty;
             txtServerPassword.Password = _settings.ServerPassword ?? string.Empty;
             chkDisableIntro.IsChecked = _settings.DisableCinematicIntro;
