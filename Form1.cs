@@ -11,6 +11,16 @@ namespace RealmLauncher
 {
     public partial class Form1 : Form
     {
+        private const int ProgressScale = 1000;
+        private const double StageConfigLoaded = 0.10;
+        private const double StagePasswordValidated = 0.14;
+        private const double StageSteamReady = 0.22;
+        private const double StageAnalysisDone = 0.34;
+        private const double StageModsStart = 0.34;
+        private const double StageModsEnd = 0.90;
+        private const double StageModlistDone = 0.96;
+        private const double StageLaunched = 1.00;
+
         private readonly LauncherService _launcherService = new LauncherService();
         private LauncherSettings _settings;
         private CancellationTokenSource _cts;
@@ -50,6 +60,7 @@ namespace RealmLauncher
                 ToggleUi(false);
                 txtLog.Clear();
                 AppendLog("Старт REALM RolePlay Launcher...");
+                StartProgress("Инициализация...");
 
                 SaveSettings();
 
@@ -61,6 +72,7 @@ namespace RealmLauncher
 
                 lblStatus.Text = "Скачиваю конфиг сервера...";
                 var config = await _launcherService.DownloadConfigAsync(_settings.ConfigUrl, _cts.Token);
+                SetProgress(StageConfigLoaded, "Конфиг сервера загружен.");
                 AppendLog(string.Format("Сервер: {0}", config.Name));
                 AppendLog(string.Format("IP: {0}", config.Ip));
                 AppendLog(string.Format("Модов в списке: {0}", config.Mods.Count));
@@ -70,6 +82,7 @@ namespace RealmLauncher
                     lblStatus.Text = "Неверный пароль сервера.";
                     return;
                 }
+                SetProgress(StagePasswordValidated, "Пароль сервера проверен.");
 
                 if (chkDisableIntro.Checked)
                 {
@@ -82,8 +95,11 @@ namespace RealmLauncher
                     lblStatus.Text = "SteamCMD не установлен.";
                     return;
                 }
+                SetProgress(StageSteamReady, "SteamCMD готов.");
 
+                lblStatus.Text = "Проверка актуальности модов...";
                 var analysis = await _launcherService.AnalyzeModsAsync(_settings.ConanExePath, config.Mods, AppendLog, _cts.Token);
+                SetProgress(StageAnalysisDone, "Проверка модов завершена.");
                 if (chkAutoSubscribe.Checked)
                 {
                     var idsForSubscription = analysis.Updates
@@ -109,26 +125,25 @@ namespace RealmLauncher
                         .Select(x => x.First())
                         .ToList();
 
-                    InitializeProgress(uniqueUpdates.Count);
-                    lblStatus.Text = "Проверяю и обновляю моды...";
-                    await _launcherService.SyncModsAsync(_settings.ConanExePath, uniqueUpdates, AppendLog, UpdateProgress, _cts.Token);
-                    CompleteProgress();
+                    SetProgress(StageModsStart, "Проверка и обновление модов...");
+                    await _launcherService.SyncModsAsync(_settings.ConanExePath, uniqueUpdates, AppendLog, UpdateModSyncProgress, _cts.Token);
+                    SetProgress(StageModsEnd, "Моды синхронизированы.");
                 }
                 else
                 {
                     AppendLog("Все моды актуальны, обновление не требуется.");
-                    ResetProgress();
+                    SetProgress(StageModsEnd, "Обновление модов не требуется.");
                 }
 
-                lblStatus.Text = "Обновляю modlist.txt...";
+                lblStatus.Text = "Обновление modlist.txt...";
                 var modListPath = _launcherService.WriteModListFile(_settings.ConanExePath, config.Mods, AppendLog);
                 AppendLog(string.Format("modlist.txt обновлён: {0}", modListPath));
+                SetProgress(StageModlistDone, "modlist.txt обновлён.");
 
-                lblStatus.Text = "Запускаю подключение к серверу...";
+                lblStatus.Text = "Запуск подключения к серверу...";
                 _launcherService.LaunchServerConnection(_settings.ConanExePath, config.Ip);
                 AppendLog("Игра запущена с авто-подключением.");
-
-                lblStatus.Text = "Готово. Игра запускается.";
+                SetProgress(StageLaunched, "Готово. Игра запускается.");
             }
             catch (Exception ex)
             {
@@ -210,7 +225,7 @@ namespace RealmLauncher
 
             var message =
                 string.Format("Найдено модов для установки/обновления: {0}\n", analysis.Updates.Count) +
-                string.Format("Оценочный размер загрузки: {0:0.0} MB\n\n", totalMb) +
+                string.Format("Примерный размер загрузки: {0:0.0} MB\n\n", totalMb) +
                 string.Join("\n", lines) +
                 "\n\nПродолжить?";
 
@@ -269,7 +284,7 @@ namespace RealmLauncher
             using (var dialog = new OpenFileDialog())
             {
                 dialog.Filter = "ConanSandbox.exe|ConanSandbox.exe|Исполняемые файлы (*.exe)|*.exe|Все файлы (*.*)|*.*";
-                dialog.Title = "Выбери ConanSandbox.exe";
+                dialog.Title = "Выберите ConanSandbox.exe";
 
                 if (dialog.ShowDialog(this) == DialogResult.OK)
                 {
@@ -290,52 +305,64 @@ namespace RealmLauncher
             btnPlay.Enabled = enabled;
         }
 
-        private void InitializeProgress(int max)
+        private void StartProgress(string status)
         {
             if (InvokeRequired)
             {
-                BeginInvoke(new Action<int>(InitializeProgress), max);
+                BeginInvoke(new Action<string>(StartProgress), status);
                 return;
             }
 
             progressMods.Minimum = 0;
-            progressMods.Maximum = Math.Max(1, max);
+            progressMods.Maximum = ProgressScale;
             progressMods.Value = 0;
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                lblStatus.Text = status;
+            }
         }
 
-        private void UpdateProgress(int current, int total, string modId)
+        private void SetProgress(double fraction, string status = null)
         {
             if (InvokeRequired)
             {
-                BeginInvoke(new Action<int, int, string>(UpdateProgress), current, total, modId);
+                BeginInvoke(new Action<double, string>(SetProgress), fraction, status);
                 return;
             }
 
-            progressMods.Maximum = Math.Max(1, total);
-            progressMods.Value = Math.Max(progressMods.Minimum, Math.Min(progressMods.Maximum, current));
-            lblStatus.Text = string.Format("Обновление модов: {0}/{1} ({2})", current, total, modId);
+            var clamped = Math.Max(0d, Math.Min(1d, fraction));
+            var value = (int)Math.Round(clamped * ProgressScale);
+            value = Math.Max(progressMods.Minimum, Math.Min(progressMods.Maximum, value));
+            progressMods.Value = value;
+
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                lblStatus.Text = status;
+            }
         }
 
-        private void CompleteProgress()
+        private void UpdateModSyncProgress(double current, double total, string modLabel)
         {
             if (InvokeRequired)
             {
-                BeginInvoke(new Action(CompleteProgress));
+                BeginInvoke(new Action<double, double, string>(UpdateModSyncProgress), current, total, modLabel);
                 return;
             }
 
-            progressMods.Value = progressMods.Maximum;
-        }
+            var totalSafe = Math.Max(1d, total);
+            var modFraction = Math.Max(0d, Math.Min(1d, current / totalSafe));
+            var overall = StageModsStart + ((StageModsEnd - StageModsStart) * modFraction);
 
-        private void ResetProgress()
-        {
-            if (InvokeRequired)
+            var totalInt = (int)Math.Round(totalSafe);
+            var completed = (int)Math.Floor(Math.Max(0d, Math.Min(totalSafe, current)));
+            var inCurrentPercent = (int)Math.Round((Math.Max(0d, current - completed)) * 100d);
+            if (inCurrentPercent > 100)
             {
-                BeginInvoke(new Action(ResetProgress));
-                return;
+                inCurrentPercent = 100;
             }
 
-            progressMods.Value = 0;
+            var status = string.Format("Обновление модов: {0}/{1} ({2}% - {3})", completed, totalInt, inCurrentPercent, modLabel);
+            SetProgress(overall, status);
         }
 
         private async System.Threading.Tasks.Task<bool> EnsureSteamCmdInstalledAsync()
@@ -375,7 +402,7 @@ namespace RealmLauncher
                 return false;
             }
 
-            lblStatus.Text = "Устанавливаю SteamCMD...";
+            lblStatus.Text = "Устанавливка SteamCMD...";
             await _launcherService.InstallSteamCmdAsync(AppendLog, _cts != null ? _cts.Token : CancellationToken.None);
             UpdateSteamCmdStatus();
             return true;
