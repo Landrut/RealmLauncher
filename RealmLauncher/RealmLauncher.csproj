@@ -104,6 +104,9 @@
     <Compile Include="..\Services\LauncherService.cs">
       <Link>Services\LauncherService.cs</Link>
     </Compile>
+    <Compile Include="..\Services\UrlSecurity.cs">
+      <Link>Services\UrlSecurity.cs</Link>
+    </Compile>
     <Compile Include="..\Services\LauncherUpdateService.cs">
       <Link>Services\LauncherUpdateService.cs</Link>
     </Compile>

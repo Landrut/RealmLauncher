@@ -35,6 +35,7 @@ namespace RealmLauncher
 
         private readonly LauncherService _launcherService = new LauncherService();
         private readonly LauncherUpdateService _updateService = new LauncherUpdateService();
+        private readonly System.Collections.Generic.HashSet<string> _allowedHosts = UrlSecurity.LoadAllowedHostsFromConfig();
         private readonly HttpClient _httpClient = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(12)
@@ -100,17 +101,8 @@ namespace RealmLauncher
             try
             {
                 var url = ConfigurationManager.AppSettings["DiscordInviteUrl"] ?? string.Empty;
-                if (string.IsNullOrWhiteSpace(url))
-                {
-                    MessageBox.Show(this,
-                        "Ссылка Discord не задана. Добавь ключ DiscordInviteUrl в App.config.",
-                        "REALM RolePlay Launcher",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Information);
-                    return;
-                }
-
-                Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+                var discordUri = UrlSecurity.RequireAllowedHttpsUrl(url, _allowedHosts, "DiscordInviteUrl");
+                Process.Start(new ProcessStartInfo(discordUri.AbsoluteUri) { UseShellExecute = true });
             }
             catch (Exception ex)
             {
@@ -186,7 +178,7 @@ namespace RealmLauncher
                 ? _settings.ConfigUrl
                 : defaultConfigUrl;
             txtConanExe.Text = _settings.ConanExePath ?? string.Empty;
-            txtServerPassword.Password = _settings.ServerPassword ?? string.Empty;
+            txtServerPassword.Password = _settings.GetServerPassword();
             chkDisableIntro.IsChecked = _settings.DisableCinematicIntro;
             chkAutoSubscribe.IsChecked = _settings.AutomaticallySubscribeToWorkshopMods;
             UpdateSteamCmdStatus();
@@ -196,7 +188,7 @@ namespace RealmLauncher
         {
             _settings.ConfigUrl = txtConfigUrl.Text.Trim();
             _settings.ConanExePath = txtConanExe.Text.Trim();
-            _settings.ServerPassword = txtServerPassword.Password;
+            _settings.SetServerPassword(txtServerPassword.Password);
             _settings.DisableCinematicIntro = chkDisableIntro.IsChecked == true;
             _settings.AutomaticallySubscribeToWorkshopMods = chkAutoSubscribe.IsChecked == true;
             _settings.Save();
@@ -240,7 +232,8 @@ namespace RealmLauncher
 
             try
             {
-                var raw = await _httpClient.GetStringAsync(newsUrl);
+                var newsUri = UrlSecurity.RequireAllowedHttpsUrl(newsUrl, _allowedHosts, "NewsFeedUrl");
+                var raw = await _httpClient.GetStringAsync(newsUri);
                 var newsText = NormalizeNewsText(raw);
                 txtNews.Text = string.IsNullOrWhiteSpace(newsText)
                     ? "Лента новостей пуста."
@@ -328,7 +321,7 @@ namespace RealmLauncher
                 _cts = new CancellationTokenSource();
 
                 SetStatus("Скачиваю конфиг сервера...");
-                var config = await _launcherService.DownloadConfigAsync(_settings.ConfigUrl, _cts.Token);
+                var config = await _launcherService.DownloadConfigAsync(_settings.ConfigUrl, _allowedHosts, _cts.Token);
                 SetProgress(StageConfigLoaded, "Конфиг сервера загружен.");
                 AppendLog(string.Format("Сервер: {0}", config.Name));
                 AppendLog(string.Format("IP: {0}", config.Ip));
@@ -666,7 +659,7 @@ namespace RealmLauncher
                 }
 
                 var currentVersion = typeof(MainWindow).Assembly.GetName().Version ?? new Version(1, 0, 0, 0);
-                var result = await _updateService.CheckForUpdatesAsync(manifestUrl, currentVersion, CancellationToken.None);
+                var result = await _updateService.CheckForUpdatesAsync(manifestUrl, currentVersion, _allowedHosts, CancellationToken.None);
                 if (!result.IsUpdateAvailable || result.Manifest == null)
                 {
                     if (userInitiated)
@@ -723,6 +716,7 @@ namespace RealmLauncher
 
             var packagePath = await _updateService.DownloadPackageAsync(
                 manifest,
+                _allowedHosts,
                 (downloaded, total) =>
                 {
                     var fraction = 0.0;

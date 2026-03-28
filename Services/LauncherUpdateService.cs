@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -26,6 +27,7 @@ namespace RealmLauncher.Services
         public async Task<LauncherUpdateCheckResult> CheckForUpdatesAsync(
             string manifestUrl,
             Version currentVersion,
+            ISet<string> allowedHosts,
             CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(manifestUrl))
@@ -37,7 +39,8 @@ namespace RealmLauncher.Services
                 };
             }
 
-            using (var response = await HttpClient.GetAsync(manifestUrl, cancellationToken).ConfigureAwait(false))
+            var manifestUri = UrlSecurity.RequireAllowedHttpsUrl(manifestUrl, allowedHosts, "URL манифеста обновлений");
+            using (var response = await HttpClient.GetAsync(manifestUri, cancellationToken).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -57,6 +60,8 @@ namespace RealmLauncher.Services
                     throw new InvalidOperationException("В манифесте обновлений отсутствует поле downloadUrl.");
                 }
 
+                UrlSecurity.RequireAllowedHttpsUrl(manifest.DownloadUrl, allowedHosts, "URL пакета обновления");
+
                 var latestVersion = ParseVersionLoose(manifest.Version);
                 return new LauncherUpdateCheckResult
                 {
@@ -70,6 +75,7 @@ namespace RealmLauncher.Services
 
         public async Task<string> DownloadPackageAsync(
             LauncherUpdateManifest manifest,
+            ISet<string> allowedHosts,
             Action<long, long?> progressBytes,
             CancellationToken cancellationToken)
         {
@@ -78,11 +84,12 @@ namespace RealmLauncher.Services
                 throw new InvalidOperationException("Некорректный манифест обновления.");
             }
 
+            var packageUri = UrlSecurity.RequireAllowedHttpsUrl(manifest.DownloadUrl, allowedHosts, "URL пакета обновления");
             var tempRoot = Path.Combine(Path.GetTempPath(), "RealmLauncherUpdater");
             Directory.CreateDirectory(tempRoot);
             var packagePath = Path.Combine(tempRoot, "update.zip");
 
-            using (var response = await HttpClient.GetAsync(manifest.DownloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
+            using (var response = await HttpClient.GetAsync(packageUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
 

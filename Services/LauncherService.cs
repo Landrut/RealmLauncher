@@ -78,14 +78,11 @@ namespace RealmLauncher.Services
             log("SteamCMD установлен.");
         }
 
-        public async Task<ServerConfig> DownloadConfigAsync(string configUrl, CancellationToken cancellationToken)
+        public async Task<ServerConfig> DownloadConfigAsync(string configUrl, ISet<string> allowedHosts, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(configUrl))
-            {
-                throw new InvalidOperationException("Укажите URL к JSON конфигурации сервера.");
-            }
+            var configUri = UrlSecurity.RequireAllowedHttpsUrl(configUrl, allowedHosts, "URL JSON сервера");
 
-            using (var response = await HttpClient.GetAsync(configUrl, cancellationToken).ConfigureAwait(false))
+            using (var response = await HttpClient.GetAsync(configUri, cancellationToken).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
                 var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
@@ -104,6 +101,20 @@ namespace RealmLauncher.Services
                 if (config.Mods == null)
                 {
                     config.Mods = new List<string>();
+                }
+                else
+                {
+                    // Reject malformed IDs from remote JSON before they reach steamcmd args.
+                    config.Mods = config.Mods
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Where(x =>
+                        {
+                            var parts = x.Split(new[] { '/' }, 2);
+                            return parts.Length == 2 &&
+                                   !string.IsNullOrWhiteSpace(parts[0]) &&
+                                   parts[0].Trim().All(char.IsDigit);
+                        })
+                        .ToList();
                 }
 
                 return config;
@@ -427,6 +438,10 @@ namespace RealmLauncher.Services
 
                 var modId = parts[0].Trim();
                 var pakFile = parts[1].Trim();
+                if (!modId.All(char.IsDigit))
+                {
+                    continue;
+                }
                 var fullPath = Path.Combine(workshopContentRoot, modId, pakFile);
                 entries.Add(fullPath);
 
@@ -791,6 +806,10 @@ namespace RealmLauncher.Services
                 var modId = parts[0].Trim();
                 var pakName = parts[1].Trim();
                 if (string.IsNullOrWhiteSpace(modId) || string.IsNullOrWhiteSpace(pakName))
+                {
+                    continue;
+                }
+                if (!modId.All(char.IsDigit))
                 {
                     continue;
                 }
