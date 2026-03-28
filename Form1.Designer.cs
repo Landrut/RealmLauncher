@@ -22,6 +22,7 @@
             this.txtConfigUrl = new System.Windows.Forms.TextBox();
             this.lblSteamCmdTitle = new System.Windows.Forms.Label();
             this.lblSteamCmdStatus = new System.Windows.Forms.Label();
+            this.btnCheckUpdates = new System.Windows.Forms.Button();
             this.btnCheckSteamCmd = new System.Windows.Forms.Button();
             this.lblConanExe = new System.Windows.Forms.Label();
             this.txtConanExe = new System.Windows.Forms.TextBox();
@@ -71,12 +72,22 @@
             this.lblSteamCmdStatus.TabIndex = 3;
             this.lblSteamCmdStatus.Text = "SteamCMD: неизвестно";
             // 
+            // btnCheckUpdates
+            // 
+            this.btnCheckUpdates.Location = new System.Drawing.Point(300, 78);
+            this.btnCheckUpdates.Name = "btnCheckUpdates";
+            this.btnCheckUpdates.Size = new System.Drawing.Size(244, 32);
+            this.btnCheckUpdates.TabIndex = 4;
+            this.btnCheckUpdates.Text = "Проверить обновление лаунчера";
+            this.btnCheckUpdates.UseVisualStyleBackColor = true;
+            this.btnCheckUpdates.Click += new System.EventHandler(this.btnCheckUpdates_Click);
+            // 
             // btnCheckSteamCmd
             // 
             this.btnCheckSteamCmd.Location = new System.Drawing.Point(550, 78);
             this.btnCheckSteamCmd.Name = "btnCheckSteamCmd";
             this.btnCheckSteamCmd.Size = new System.Drawing.Size(352, 32);
-            this.btnCheckSteamCmd.TabIndex = 4;
+            this.btnCheckSteamCmd.TabIndex = 5;
             this.btnCheckSteamCmd.Text = "Проверить / Установить";
             this.btnCheckSteamCmd.UseVisualStyleBackColor = true;
             this.btnCheckSteamCmd.Click += new System.EventHandler(this.btnCheckSteamCmd_Click);
@@ -201,6 +212,7 @@
             this.Controls.Add(this.btnBrowseConanExe);
             this.Controls.Add(this.txtConanExe);
             this.Controls.Add(this.lblConanExe);
+            this.Controls.Add(this.btnCheckUpdates);
             this.Controls.Add(this.btnCheckSteamCmd);
             this.Controls.Add(this.lblSteamCmdStatus);
             this.Controls.Add(this.lblSteamCmdTitle);
@@ -221,6 +233,7 @@
         private System.Windows.Forms.TextBox txtConfigUrl;
         private System.Windows.Forms.Label lblSteamCmdTitle;
         private System.Windows.Forms.Label lblSteamCmdStatus;
+        private System.Windows.Forms.Button btnCheckUpdates;
         private System.Windows.Forms.Button btnCheckSteamCmd;
         private System.Windows.Forms.Label lblConanExe;
         private System.Windows.Forms.TextBox txtConanExe;

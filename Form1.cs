@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -22,6 +23,7 @@ namespace RealmLauncher
         private const double StageLaunched = 1.00;
 
         private readonly LauncherService _launcherService = new LauncherService();
+        private readonly LauncherUpdateService _updateService = new LauncherUpdateService();
         private LauncherSettings _settings;
         private CancellationTokenSource _cts;
 
@@ -29,6 +31,7 @@ namespace RealmLauncher
         {
             InitializeComponent();
             LoadSettings();
+            Shown += Form1_Shown;
         }
 
         private void LoadSettings()
@@ -70,7 +73,7 @@ namespace RealmLauncher
                 }
                 _cts = new CancellationTokenSource();
 
-                lblStatus.Text = "Скачиваю конфиг сервера...";
+                lblStatus.Text = "Скачивание конфига сервера...";
                 var config = await _launcherService.DownloadConfigAsync(_settings.ConfigUrl, _cts.Token);
                 SetProgress(StageConfigLoaded, "Конфиг сервера загружен.");
                 AppendLog(string.Format("Сервер: {0}", config.Name));
@@ -154,6 +157,18 @@ namespace RealmLauncher
             finally
             {
                 ToggleUi(true);
+            }
+        }
+
+        private async void Form1_Shown(object sender, EventArgs e)
+        {
+            try
+            {
+                await CheckLauncherUpdateAsync(false).ConfigureAwait(true);
+            }
+            catch
+            {
+                // На старте не прерываем работу лаунчера, если проверка обновлений недоступна.
             }
         }
 
@@ -279,6 +294,11 @@ namespace RealmLauncher
             }
         }
 
+        private async void btnCheckUpdates_Click(object sender, EventArgs e)
+        {
+            await CheckLauncherUpdateAsync(true);
+        }
+
         private void btnBrowseConanExe_Click(object sender, EventArgs e)
         {
             using (var dialog = new OpenFileDialog())
@@ -300,6 +320,7 @@ namespace RealmLauncher
             txtServerPassword.Enabled = enabled;
             chkDisableIntro.Enabled = enabled;
             chkAutoSubscribe.Enabled = enabled;
+            btnCheckUpdates.Enabled = enabled;
             btnCheckSteamCmd.Enabled = enabled;
             btnBrowseConanExe.Enabled = enabled;
             btnPlay.Enabled = enabled;
@@ -441,5 +462,162 @@ namespace RealmLauncher
             txtLog.SelectionStart = txtLog.TextLength;
             txtLog.ScrollToCaret();
         }
+
+        private async System.Threading.Tasks.Task CheckLauncherUpdateAsync(bool userInitiated)
+        {
+            var manifestUrl = GetUpdateManifestUrl();
+            if (string.IsNullOrWhiteSpace(manifestUrl))
+            {
+                if (userInitiated)
+                {
+                    MessageBox.Show(
+                        this,
+                        "URL манифеста обновлений не задан.\n\nДобавь ключ UpdateManifestUrl в App.config и укажи ссылку на JSON манифест.",
+                        "Проверка обновлений",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
+                return;
+            }
+
+            try
+            {
+                if (userInitiated)
+                {
+                    ToggleUi(false);
+                    StartProgress("Проверяю обновления лаунчера...");
+                }
+
+                var currentVersion = GetCurrentLauncherVersion();
+                var result = await _updateService.CheckForUpdatesAsync(manifestUrl, currentVersion, CancellationToken.None);
+                if (!result.IsUpdateAvailable || result.Manifest == null)
+                {
+                    if (userInitiated)
+                    {
+                        SetProgress(1.0, "Обновлений не найдено.");
+                        MessageBox.Show(
+                            this,
+                            "У вас уже установлена последняя версия лаунчера (" + currentVersion + ").",
+                            "Проверка обновлений",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+                    }
+                    return;
+                }
+
+                var sizeText = result.Manifest.SizeBytes.HasValue && result.Manifest.SizeBytes.Value > 0
+                    ? FormatSize(result.Manifest.SizeBytes.Value)
+                    : "размер неизвестен";
+                var changelog = string.IsNullOrWhiteSpace(result.Manifest.Changelog)
+                    ? string.Empty
+                    : ("\n\nИзменения:\n" + result.Manifest.Changelog.Trim());
+
+                var message =
+                    "Доступно обновление лаунчера.\n\n" +
+                    "Текущая версия: " + result.CurrentVersion + "\n" +
+                    "Новая версия: " + result.LatestVersion + "\n" +
+                    "Размер: " + sizeText +
+                    changelog + "\n\n" +
+                    "Скачать и установить сейчас?";
+
+                var ask = MessageBox.Show(
+                    this,
+                    message,
+                    "Обновление лаунчера",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (ask != DialogResult.Yes)
+                {
+                    if (userInitiated)
+                    {
+                        SetProgress(0, "Обновление отменено.");
+                    }
+                    return;
+                }
+
+                ToggleUi(false);
+                await DownloadAndApplyLauncherUpdateAsync(result.Manifest).ConfigureAwait(true);
+            }
+            catch (Exception ex)
+            {
+                if (userInitiated)
+                {
+                    MessageBox.Show(
+                        this,
+                        "Не удалось проверить/установить обновление:\n" + ex.Message,
+                        "Обновление лаунчера",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                }
+
+                AppendLog("ОШИБКА обновления лаунчера: " + ex.Message);
+            }
+            finally
+            {
+                if (!IsDisposed)
+                {
+                    ToggleUi(true);
+                }
+            }
+        }
+
+        private async System.Threading.Tasks.Task DownloadAndApplyLauncherUpdateAsync(LauncherUpdateManifest manifest)
+        {
+            StartProgress("Скачиваю обновление лаунчера...");
+            SetProgress(0.05, "Подготовка к скачиванию обновления...");
+
+            var packagePath = await _updateService.DownloadPackageAsync(
+                manifest,
+                (downloaded, total) =>
+                {
+                    var fraction = 0.0;
+                    if (total.HasValue && total.Value > 0)
+                    {
+                        fraction = Math.Max(0d, Math.Min(1d, downloaded / (double)total.Value));
+                    }
+
+                    var totalLabel = total.HasValue && total.Value > 0 ? FormatSize(total.Value) : "неизвестно";
+                    var status = string.Format("Скачивание обновления: {0} / {1}", FormatSize(downloaded), totalLabel);
+                    SetProgress(0.05 + (0.85 * fraction), status);
+                },
+                CancellationToken.None).ConfigureAwait(true);
+
+            SetProgress(0.95, "Устанавливаю обновление...");
+            _updateService.InstallAndRestart(packagePath);
+            SetProgress(1.0, "Обновление установлено. Перезапуск лаунчера...");
+            Application.Exit();
+        }
+
+        private static Version GetCurrentLauncherVersion()
+        {
+            return typeof(Form1).Assembly.GetName().Version ?? new Version(1, 0, 0, 0);
+        }
+
+        private static string GetUpdateManifestUrl()
+        {
+            return ConfigurationManager.AppSettings["UpdateManifestUrl"] ?? string.Empty;
+        }
+
+        private static string FormatSize(long bytes)
+        {
+            if (bytes <= 0)
+            {
+                return "0 B";
+            }
+
+            string[] units = { "B", "KB", "MB", "GB" };
+            var size = (double)bytes;
+            var unit = 0;
+            while (size >= 1024 && unit < units.Length - 1)
+            {
+                size /= 1024;
+                unit++;
+            }
+
+            return string.Format("{0:0.##} {1}", size, units[unit]);
+        }
     }
 }
+
+

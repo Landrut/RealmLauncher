@@ -585,7 +585,7 @@ namespace RealmLauncher.Services
                 return analysis;
             }
 
-            log("Проверкаю актуальности модов через Steam Web API...");
+            log("Проверка актуальности модов через Steam Web API...");
 
             Dictionary<string, WorkshopModMeta> remoteMeta;
             try

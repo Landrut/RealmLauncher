@@ -1,0 +1,7 @@
+{
+  "version": "1.0.1",
+  "downloadUrl": "https://your-domain.com/realm-launcher/RealmLauncher-1.0.1.zip",
+  "sizeBytes": 0,
+  "sha256": "",
+  "changelog": "- Исправлен прогресс загрузки модов\n- Добавлена проверка обновлений лаунчера"
+}
