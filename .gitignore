@@ -5,3 +5,5 @@
 update-manifest.json
 tools/command.txt
 *.zip
+/RealmLauncher/bin
+/RealmLauncher/obj
