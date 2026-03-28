@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
@@ -29,6 +29,7 @@ namespace RealmLauncher
             txtConanExe.Text = _settings.ConanExePath ?? string.Empty;
             txtServerPassword.Text = _settings.ServerPassword ?? string.Empty;
             chkDisableIntro.Checked = _settings.DisableCinematicIntro;
+            chkAutoSubscribe.Checked = _settings.AutomaticallySubscribeToWorkshopMods;
             UpdateSteamCmdStatus();
         }
 
@@ -38,6 +39,7 @@ namespace RealmLauncher
             _settings.ConanExePath = txtConanExe.Text.Trim();
             _settings.ServerPassword = txtServerPassword.Text;
             _settings.DisableCinematicIntro = chkDisableIntro.Checked;
+            _settings.AutomaticallySubscribeToWorkshopMods = chkAutoSubscribe.Checked;
             _settings.Save();
         }
 
@@ -74,36 +76,44 @@ namespace RealmLauncher
                     _launcherService.DisableCinematicIntro(_settings.ConanExePath, AppendLog);
                 }
 
-                var steamReady = await EnsureSteamCmdInstalledAsync();
-                if (!steamReady)
+                if (chkAutoSubscribe.Checked)
                 {
-                    lblStatus.Text = "SteamCMD не установлен.";
-                    return;
-                }
-
-                var analysis = await _launcherService.AnalyzeModsAsync(_settings.ConanExePath, config.Mods, AppendLog, _cts.Token);
-                if (analysis.Updates.Count > 0)
-                {
-                    var confirmed = ConfirmUpdates(analysis);
-                    if (!confirmed)
+                    var steamReady = await EnsureSteamCmdInstalledAsync();
+                    if (!steamReady)
                     {
-                        lblStatus.Text = "Обновление модов отменено пользователем.";
+                        lblStatus.Text = "SteamCMD не установлен.";
                         return;
                     }
 
-                    var uniqueUpdates = analysis.Updates
-                        .GroupBy(x => x.ModId)
-                        .Select(x => x.First())
-                        .ToList();
+                    var analysis = await _launcherService.AnalyzeModsAsync(_settings.ConanExePath, config.Mods, AppendLog, _cts.Token);
+                    if (analysis.Updates.Count > 0)
+                    {
+                        var confirmed = ConfirmUpdates(analysis);
+                        if (!confirmed)
+                        {
+                            lblStatus.Text = "Обновление модов отменено пользователем.";
+                            return;
+                        }
 
-                    InitializeProgress(uniqueUpdates.Count);
-                    lblStatus.Text = "Проверяю и обновляю моды...";
-                    await _launcherService.SyncModsAsync(_settings.ConanExePath, uniqueUpdates, AppendLog, UpdateProgress, _cts.Token);
-                    CompleteProgress();
+                        var uniqueUpdates = analysis.Updates
+                            .GroupBy(x => x.ModId)
+                            .Select(x => x.First())
+                            .ToList();
+
+                        InitializeProgress(uniqueUpdates.Count);
+                        lblStatus.Text = "Проверяю и обновляю моды...";
+                        await _launcherService.SyncModsAsync(_settings.ConanExePath, uniqueUpdates, AppendLog, UpdateProgress, _cts.Token);
+                        CompleteProgress();
+                    }
+                    else
+                    {
+                        AppendLog("Все моды актуальны, обновление не требуется.");
+                        ResetProgress();
+                    }
                 }
                 else
                 {
-                    AppendLog("Все моды актуальны, обновление не требуется.");
+                    AppendLog("Автоподписка и автообновление модов Workshop отключены в настройках.");
                     ResetProgress();
                 }
 
@@ -271,6 +281,7 @@ namespace RealmLauncher
             txtConanExe.Enabled = enabled;
             txtServerPassword.Enabled = enabled;
             chkDisableIntro.Enabled = enabled;
+            chkAutoSubscribe.Enabled = enabled;
             btnCheckSteamCmd.Enabled = enabled;
             btnBrowseConanExe.Enabled = enabled;
             btnPlay.Enabled = enabled;

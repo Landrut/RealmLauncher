@@ -1,4 +1,4 @@
-namespace RealmLauncher
+﻿namespace RealmLauncher
 {
     partial class Form1
     {
@@ -17,6 +17,7 @@ namespace RealmLauncher
 
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.lblConfigUrl = new System.Windows.Forms.Label();
             this.txtConfigUrl = new System.Windows.Forms.TextBox();
             this.lblSteamCmdTitle = new System.Windows.Forms.Label();
@@ -28,10 +29,12 @@ namespace RealmLauncher
             this.lblServerPassword = new System.Windows.Forms.Label();
             this.txtServerPassword = new System.Windows.Forms.TextBox();
             this.chkDisableIntro = new System.Windows.Forms.CheckBox();
+            this.chkAutoSubscribe = new System.Windows.Forms.CheckBox();
             this.btnPlay = new System.Windows.Forms.Button();
             this.lblStatus = new System.Windows.Forms.Label();
             this.progressMods = new System.Windows.Forms.ProgressBar();
             this.txtLog = new System.Windows.Forms.TextBox();
+            this.toolTipOptions = new System.Windows.Forms.ToolTip(this.components);
             this.SuspendLayout();
             // 
             // lblConfigUrl
@@ -118,18 +121,32 @@ namespace RealmLauncher
             this.txtServerPassword.Location = new System.Drawing.Point(15, 194);
             this.txtServerPassword.Name = "txtServerPassword";
             this.txtServerPassword.PasswordChar = '*';
-            this.txtServerPassword.Size = new System.Drawing.Size(334, 22);
+            this.txtServerPassword.Size = new System.Drawing.Size(265, 22);
             this.txtServerPassword.TabIndex = 9;
             // 
             // chkDisableIntro
             // 
             this.chkDisableIntro.AutoSize = true;
-            this.chkDisableIntro.Location = new System.Drawing.Point(370, 195);
+            this.chkDisableIntro.Location = new System.Drawing.Point(300, 195);
             this.chkDisableIntro.Name = "chkDisableIntro";
             this.chkDisableIntro.Size = new System.Drawing.Size(254, 20);
             this.chkDisableIntro.TabIndex = 10;
             this.chkDisableIntro.Text = "Отключить вступительный ролик";
+            this.toolTipOptions.SetToolTip(this.chkDisableIntro, "Заменяет вступительный ролик Conan черным экраном при загрузке игры.");
             this.chkDisableIntro.UseVisualStyleBackColor = true;
+            // 
+            // chkAutoSubscribe
+            // 
+            this.chkAutoSubscribe.AutoSize = true;
+            this.chkAutoSubscribe.Checked = true;
+            this.chkAutoSubscribe.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.chkAutoSubscribe.Location = new System.Drawing.Point(560, 195);
+            this.chkAutoSubscribe.Name = "chkAutoSubscribe";
+            this.chkAutoSubscribe.Size = new System.Drawing.Size(340, 20);
+            this.chkAutoSubscribe.TabIndex = 11;
+            this.chkAutoSubscribe.Text = "Автоматически подписываться на моды Workshop";
+            this.toolTipOptions.SetToolTip(this.chkAutoSubscribe, "При запуске лаунчер автоматически устанавливает и обновляет моды Workshop из списка сервера.");
+            this.chkAutoSubscribe.UseVisualStyleBackColor = true;
             // 
             // btnPlay
             // 
@@ -137,7 +154,7 @@ namespace RealmLauncher
             this.btnPlay.Location = new System.Drawing.Point(15, 228);
             this.btnPlay.Name = "btnPlay";
             this.btnPlay.Size = new System.Drawing.Size(885, 44);
-            this.btnPlay.TabIndex = 11;
+            this.btnPlay.TabIndex = 12;
             this.btnPlay.Text = "Играть (проверить моды и подключиться)";
             this.btnPlay.UseVisualStyleBackColor = true;
             this.btnPlay.Click += new System.EventHandler(this.btnPlay_Click);
@@ -148,7 +165,7 @@ namespace RealmLauncher
             this.lblStatus.Location = new System.Drawing.Point(12, 280);
             this.lblStatus.Name = "lblStatus";
             this.lblStatus.Size = new System.Drawing.Size(56, 16);
-            this.lblStatus.TabIndex = 12;
+            this.lblStatus.TabIndex = 13;
             this.lblStatus.Text = "Готово.";
             // 
             // progressMods
@@ -156,7 +173,7 @@ namespace RealmLauncher
             this.progressMods.Location = new System.Drawing.Point(15, 299);
             this.progressMods.Name = "progressMods";
             this.progressMods.Size = new System.Drawing.Size(885, 16);
-            this.progressMods.TabIndex = 13;
+            this.progressMods.TabIndex = 14;
             // 
             // txtLog
             // 
@@ -166,7 +183,7 @@ namespace RealmLauncher
             this.txtLog.ReadOnly = true;
             this.txtLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.txtLog.Size = new System.Drawing.Size(885, 192);
-            this.txtLog.TabIndex = 14;
+            this.txtLog.TabIndex = 15;
             // 
             // Form1
             // 
@@ -177,6 +194,7 @@ namespace RealmLauncher
             this.Controls.Add(this.progressMods);
             this.Controls.Add(this.lblStatus);
             this.Controls.Add(this.btnPlay);
+            this.Controls.Add(this.chkAutoSubscribe);
             this.Controls.Add(this.chkDisableIntro);
             this.Controls.Add(this.txtServerPassword);
             this.Controls.Add(this.lblServerPassword);
@@ -210,9 +228,11 @@ namespace RealmLauncher
         private System.Windows.Forms.Label lblServerPassword;
         private System.Windows.Forms.TextBox txtServerPassword;
         private System.Windows.Forms.CheckBox chkDisableIntro;
+        private System.Windows.Forms.CheckBox chkAutoSubscribe;
         private System.Windows.Forms.Button btnPlay;
         private System.Windows.Forms.Label lblStatus;
         private System.Windows.Forms.ProgressBar progressMods;
         private System.Windows.Forms.TextBox txtLog;
+        private System.Windows.Forms.ToolTip toolTipOptions;
     }
 }

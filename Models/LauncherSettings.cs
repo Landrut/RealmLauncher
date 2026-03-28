@@ -10,6 +10,12 @@ namespace RealmLauncher.Models
         public string ConanExePath { get; set; }
         public string ServerPassword { get; set; }
         public bool DisableCinematicIntro { get; set; }
+        public bool AutomaticallySubscribeToWorkshopMods { get; set; }
+
+        public LauncherSettings()
+        {
+            AutomaticallySubscribeToWorkshopMods = true;
+        }
 
         public static string SettingsFilePath
         {
