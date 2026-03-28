@@ -41,42 +41,44 @@
             // lblConfigUrl
             // 
             this.lblConfigUrl.AutoSize = true;
-            this.lblConfigUrl.Location = new System.Drawing.Point(12, 12);
+            this.lblConfigUrl.Location = new System.Drawing.Point(14, 15);
             this.lblConfigUrl.Name = "lblConfigUrl";
-            this.lblConfigUrl.Size = new System.Drawing.Size(122, 16);
+            this.lblConfigUrl.Size = new System.Drawing.Size(154, 20);
             this.lblConfigUrl.TabIndex = 0;
             this.lblConfigUrl.Text = "URL JSON сервера";
             // 
             // txtConfigUrl
             // 
-            this.txtConfigUrl.Location = new System.Drawing.Point(15, 31);
+            this.txtConfigUrl.Location = new System.Drawing.Point(17, 39);
+            this.txtConfigUrl.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.txtConfigUrl.Name = "txtConfigUrl";
-            this.txtConfigUrl.Size = new System.Drawing.Size(885, 22);
+            this.txtConfigUrl.Size = new System.Drawing.Size(995, 26);
             this.txtConfigUrl.TabIndex = 1;
             // 
             // lblSteamCmdTitle
             // 
             this.lblSteamCmdTitle.AutoSize = true;
-            this.lblSteamCmdTitle.Location = new System.Drawing.Point(12, 64);
+            this.lblSteamCmdTitle.Location = new System.Drawing.Point(14, 80);
             this.lblSteamCmdTitle.Name = "lblSteamCmdTitle";
-            this.lblSteamCmdTitle.Size = new System.Drawing.Size(141, 16);
+            this.lblSteamCmdTitle.Size = new System.Drawing.Size(170, 20);
             this.lblSteamCmdTitle.TabIndex = 2;
             this.lblSteamCmdTitle.Text = "Проверка SteamCMD";
             // 
             // lblSteamCmdStatus
             // 
             this.lblSteamCmdStatus.AutoSize = true;
-            this.lblSteamCmdStatus.Location = new System.Drawing.Point(12, 87);
+            this.lblSteamCmdStatus.Location = new System.Drawing.Point(14, 109);
             this.lblSteamCmdStatus.Name = "lblSteamCmdStatus";
-            this.lblSteamCmdStatus.Size = new System.Drawing.Size(151, 16);
+            this.lblSteamCmdStatus.Size = new System.Drawing.Size(188, 20);
             this.lblSteamCmdStatus.TabIndex = 3;
             this.lblSteamCmdStatus.Text = "SteamCMD: неизвестно";
             // 
             // btnCheckUpdates
             // 
-            this.btnCheckUpdates.Location = new System.Drawing.Point(400, 78);
+            this.btnCheckUpdates.Location = new System.Drawing.Point(450, 98);
+            this.btnCheckUpdates.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnCheckUpdates.Name = "btnCheckUpdates";
-            this.btnCheckUpdates.Size = new System.Drawing.Size(244, 32);
+            this.btnCheckUpdates.Size = new System.Drawing.Size(274, 40);
             this.btnCheckUpdates.TabIndex = 4;
             this.btnCheckUpdates.Text = "Проверить обновление лаунчера";
             this.btnCheckUpdates.UseVisualStyleBackColor = true;
@@ -84,9 +86,10 @@
             // 
             // btnCheckSteamCmd
             // 
-            this.btnCheckSteamCmd.Location = new System.Drawing.Point(650, 78);
+            this.btnCheckSteamCmd.Location = new System.Drawing.Point(731, 98);
+            this.btnCheckSteamCmd.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnCheckSteamCmd.Name = "btnCheckSteamCmd";
-            this.btnCheckSteamCmd.Size = new System.Drawing.Size(252, 32);
+            this.btnCheckSteamCmd.Size = new System.Drawing.Size(284, 40);
             this.btnCheckSteamCmd.TabIndex = 5;
             this.btnCheckSteamCmd.Text = "Проверить / Установить";
             this.btnCheckSteamCmd.UseVisualStyleBackColor = true;
@@ -95,24 +98,26 @@
             // lblConanExe
             // 
             this.lblConanExe.AutoSize = true;
-            this.lblConanExe.Location = new System.Drawing.Point(12, 123);
+            this.lblConanExe.Location = new System.Drawing.Point(14, 154);
             this.lblConanExe.Name = "lblConanExe";
-            this.lblConanExe.Size = new System.Drawing.Size(170, 16);
+            this.lblConanExe.Size = new System.Drawing.Size(201, 20);
             this.lblConanExe.TabIndex = 5;
             this.lblConanExe.Text = "Путь к ConanSandbox.exe";
             // 
             // txtConanExe
             // 
-            this.txtConanExe.Location = new System.Drawing.Point(15, 142);
+            this.txtConanExe.Location = new System.Drawing.Point(17, 178);
+            this.txtConanExe.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.txtConanExe.Name = "txtConanExe";
-            this.txtConanExe.Size = new System.Drawing.Size(789, 22);
+            this.txtConanExe.Size = new System.Drawing.Size(887, 26);
             this.txtConanExe.TabIndex = 6;
             // 
             // btnBrowseConanExe
             // 
-            this.btnBrowseConanExe.Location = new System.Drawing.Point(810, 141);
+            this.btnBrowseConanExe.Location = new System.Drawing.Point(911, 176);
+            this.btnBrowseConanExe.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnBrowseConanExe.Name = "btnBrowseConanExe";
-            this.btnBrowseConanExe.Size = new System.Drawing.Size(90, 24);
+            this.btnBrowseConanExe.Size = new System.Drawing.Size(101, 30);
             this.btnBrowseConanExe.TabIndex = 7;
             this.btnBrowseConanExe.Text = "Обзор...";
             this.btnBrowseConanExe.UseVisualStyleBackColor = true;
@@ -121,26 +126,28 @@
             // lblServerPassword
             // 
             this.lblServerPassword.AutoSize = true;
-            this.lblServerPassword.Location = new System.Drawing.Point(12, 175);
+            this.lblServerPassword.Location = new System.Drawing.Point(14, 219);
             this.lblServerPassword.Name = "lblServerPassword";
-            this.lblServerPassword.Size = new System.Drawing.Size(109, 16);
+            this.lblServerPassword.Size = new System.Drawing.Size(133, 20);
             this.lblServerPassword.TabIndex = 8;
             this.lblServerPassword.Text = "Пароль сервера";
             // 
             // txtServerPassword
             // 
-            this.txtServerPassword.Location = new System.Drawing.Point(15, 194);
+            this.txtServerPassword.Location = new System.Drawing.Point(17, 242);
+            this.txtServerPassword.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.txtServerPassword.Name = "txtServerPassword";
             this.txtServerPassword.PasswordChar = '*';
-            this.txtServerPassword.Size = new System.Drawing.Size(265, 22);
+            this.txtServerPassword.Size = new System.Drawing.Size(298, 26);
             this.txtServerPassword.TabIndex = 9;
             // 
             // chkDisableIntro
             // 
             this.chkDisableIntro.AutoSize = true;
-            this.chkDisableIntro.Location = new System.Drawing.Point(300, 195);
+            this.chkDisableIntro.Location = new System.Drawing.Point(338, 244);
+            this.chkDisableIntro.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.chkDisableIntro.Name = "chkDisableIntro";
-            this.chkDisableIntro.Size = new System.Drawing.Size(254, 20);
+            this.chkDisableIntro.Size = new System.Drawing.Size(292, 24);
             this.chkDisableIntro.TabIndex = 10;
             this.chkDisableIntro.Text = "Отключить вступительный ролик";
             this.toolTipOptions.SetToolTip(this.chkDisableIntro, "Заменяет вступительный ролик Conan черным экраном при загрузке игры.");
@@ -151,20 +158,23 @@
             this.chkAutoSubscribe.AutoSize = true;
             this.chkAutoSubscribe.Checked = true;
             this.chkAutoSubscribe.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chkAutoSubscribe.Location = new System.Drawing.Point(560, 195);
+            this.chkAutoSubscribe.Location = new System.Drawing.Point(630, 244);
+            this.chkAutoSubscribe.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.chkAutoSubscribe.Name = "chkAutoSubscribe";
-            this.chkAutoSubscribe.Size = new System.Drawing.Size(340, 20);
+            this.chkAutoSubscribe.Size = new System.Drawing.Size(421, 24);
             this.chkAutoSubscribe.TabIndex = 11;
             this.chkAutoSubscribe.Text = "Автоматически подписываться на моды Workshop";
-            this.toolTipOptions.SetToolTip(this.chkAutoSubscribe, "При запуске лаунчер автоматически устанавливает и обновляет моды Workshop из списка сервера.");
+            this.toolTipOptions.SetToolTip(this.chkAutoSubscribe, "При запуске лаунчер автоматически устанавливает и обновляет моды Workshop из спис" +
+        "ка сервера.");
             this.chkAutoSubscribe.UseVisualStyleBackColor = true;
             // 
             // btnPlay
             // 
             this.btnPlay.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.btnPlay.Location = new System.Drawing.Point(15, 228);
+            this.btnPlay.Location = new System.Drawing.Point(17, 285);
+            this.btnPlay.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.btnPlay.Name = "btnPlay";
-            this.btnPlay.Size = new System.Drawing.Size(885, 44);
+            this.btnPlay.Size = new System.Drawing.Size(996, 55);
             this.btnPlay.TabIndex = 12;
             this.btnPlay.Text = "Играть (проверить моды и подключиться)";
             this.btnPlay.UseVisualStyleBackColor = true;
@@ -173,34 +183,36 @@
             // lblStatus
             // 
             this.lblStatus.AutoSize = true;
-            this.lblStatus.Location = new System.Drawing.Point(12, 280);
+            this.lblStatus.Location = new System.Drawing.Point(14, 350);
             this.lblStatus.Name = "lblStatus";
-            this.lblStatus.Size = new System.Drawing.Size(56, 16);
+            this.lblStatus.Size = new System.Drawing.Size(67, 20);
             this.lblStatus.TabIndex = 13;
             this.lblStatus.Text = "Готово.";
             // 
             // progressMods
             // 
-            this.progressMods.Location = new System.Drawing.Point(15, 299);
+            this.progressMods.Location = new System.Drawing.Point(17, 374);
+            this.progressMods.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.progressMods.Name = "progressMods";
-            this.progressMods.Size = new System.Drawing.Size(885, 16);
+            this.progressMods.Size = new System.Drawing.Size(996, 20);
             this.progressMods.TabIndex = 14;
             // 
             // txtLog
             // 
-            this.txtLog.Location = new System.Drawing.Point(15, 321);
+            this.txtLog.Location = new System.Drawing.Point(17, 401);
+            this.txtLog.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.txtLog.Multiline = true;
             this.txtLog.Name = "txtLog";
             this.txtLog.ReadOnly = true;
             this.txtLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtLog.Size = new System.Drawing.Size(885, 192);
+            this.txtLog.Size = new System.Drawing.Size(995, 239);
             this.txtLog.TabIndex = 15;
             // 
             // Form1
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(918, 528);
+            this.ClientSize = new System.Drawing.Size(1033, 660);
             this.Controls.Add(this.txtLog);
             this.Controls.Add(this.progressMods);
             this.Controls.Add(this.lblStatus);
@@ -219,12 +231,14 @@
             this.Controls.Add(this.txtConfigUrl);
             this.Controls.Add(this.lblConfigUrl);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            this.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.MaximizeBox = false;
             this.Name = "Form1";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "REALM RolePlay Launcher";
             this.ResumeLayout(false);
             this.PerformLayout();
+
         }
 
         #endregion

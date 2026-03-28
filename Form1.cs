@@ -143,7 +143,7 @@ namespace RealmLauncher
                 AppendLog(string.Format("modlist.txt обновлён: {0}", modListPath));
                 SetProgress(StageModlistDone, "modlist.txt обновлён.");
 
-                lblStatus.Text = "Запуск подключения к серверу...";
+                lblStatus.Text = "Запуск игры и подключение к серверу...";
                 _launcherService.LaunchServerConnection(_settings.ConanExePath, config.Ip);
                 AppendLog("Игра запущена с авто-подключением.");
                 SetProgress(StageLaunched, "Готово. Игра запускается.");

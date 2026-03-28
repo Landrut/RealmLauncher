@@ -166,7 +166,7 @@ namespace RealmLauncher.Services
             {
                 var item = updates[i];
                 var itemLabel = string.Format("{0}/{1}", item.ModId, item.PakName);
-                log(string.Format("Обновляю мод {0}/{1}: {2}", i + 1, updates.Count, itemLabel));
+                log(string.Format("Обновление мода {0}/{1}: {2}", i + 1, updates.Count, itemLabel));
 
                 var lastSignalUtc = DateTime.UtcNow;
                 var effectivePercent = 0.0;
