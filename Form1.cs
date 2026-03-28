@@ -76,44 +76,47 @@ namespace RealmLauncher
                     _launcherService.DisableCinematicIntro(_settings.ConanExePath, AppendLog);
                 }
 
+                var steamReady = await EnsureSteamCmdInstalledAsync();
+                if (!steamReady)
+                {
+                    lblStatus.Text = "SteamCMD не установлен.";
+                    return;
+                }
+
+                var analysis = await _launcherService.AnalyzeModsAsync(_settings.ConanExePath, config.Mods, AppendLog, _cts.Token);
                 if (chkAutoSubscribe.Checked)
                 {
-                    var steamReady = await EnsureSteamCmdInstalledAsync();
-                    if (!steamReady)
+                    var idsForSubscription = analysis.Updates
+                        .Where(x => string.Equals(x.Status, "Отсутствует", StringComparison.OrdinalIgnoreCase))
+                        .Select(x => x.ModId)
+                        .Distinct()
+                        .ToList();
+
+                    _launcherService.TryOpenWorkshopPagesForSubscription(idsForSubscription, AppendLog);
+                }
+
+                if (analysis.Updates.Count > 0)
+                {
+                    var confirmed = ConfirmUpdates(analysis);
+                    if (!confirmed)
                     {
-                        lblStatus.Text = "SteamCMD не установлен.";
+                        lblStatus.Text = "Обновление модов отменено пользователем.";
                         return;
                     }
 
-                    var analysis = await _launcherService.AnalyzeModsAsync(_settings.ConanExePath, config.Mods, AppendLog, _cts.Token);
-                    if (analysis.Updates.Count > 0)
-                    {
-                        var confirmed = ConfirmUpdates(analysis);
-                        if (!confirmed)
-                        {
-                            lblStatus.Text = "Обновление модов отменено пользователем.";
-                            return;
-                        }
+                    var uniqueUpdates = analysis.Updates
+                        .GroupBy(x => x.ModId)
+                        .Select(x => x.First())
+                        .ToList();
 
-                        var uniqueUpdates = analysis.Updates
-                            .GroupBy(x => x.ModId)
-                            .Select(x => x.First())
-                            .ToList();
-
-                        InitializeProgress(uniqueUpdates.Count);
-                        lblStatus.Text = "Проверяю и обновляю моды...";
-                        await _launcherService.SyncModsAsync(_settings.ConanExePath, uniqueUpdates, AppendLog, UpdateProgress, _cts.Token);
-                        CompleteProgress();
-                    }
-                    else
-                    {
-                        AppendLog("Все моды актуальны, обновление не требуется.");
-                        ResetProgress();
-                    }
+                    InitializeProgress(uniqueUpdates.Count);
+                    lblStatus.Text = "Проверяю и обновляю моды...";
+                    await _launcherService.SyncModsAsync(_settings.ConanExePath, uniqueUpdates, AppendLog, UpdateProgress, _cts.Token);
+                    CompleteProgress();
                 }
                 else
                 {
-                    AppendLog("Автоподписка и автообновление модов Workshop отключены в настройках.");
+                    AppendLog("Все моды актуальны, обновление не требуется.");
                     ResetProgress();
                 }
 

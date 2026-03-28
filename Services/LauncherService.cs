@@ -247,6 +247,35 @@ namespace RealmLauncher.Services
             });
         }
 
+        public void TryOpenWorkshopPagesForSubscription(IEnumerable<string> modIds, Action<string> log)
+        {
+            var ids = modIds != null
+                ? modIds.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList()
+                : new List<string>();
+
+            if (ids.Count == 0)
+            {
+                return;
+            }
+
+            log(string.Format("Автоподписка: открываю страницы Workshop для {0} новых модов.", ids.Count));
+            foreach (var id in ids)
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "steam://url/CommunityFilePage/" + id,
+                        UseShellExecute = true
+                    });
+                }
+                catch
+                {
+                    // Пропускаем, если клиент Steam недоступен.
+                }
+            }
+        }
+
         private static void ExtractZipOverwrite(string zipPath, string destinationDirectory)
         {
             using (var archive = ZipFile.OpenRead(zipPath))
