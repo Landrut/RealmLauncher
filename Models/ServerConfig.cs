@@ -11,6 +11,9 @@ namespace RealmLauncher.Models
         [JsonProperty("ip")]
         public string Ip { get; set; }
 
+        [JsonProperty("query_port")]
+        public int? QueryPort { get; set; }
+
         [JsonProperty("mods")]
         public List<string> Mods { get; set; }
 

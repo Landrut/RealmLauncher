@@ -16,6 +16,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using Newtonsoft.Json.Linq;
 
 namespace RealmLauncher
@@ -41,6 +42,9 @@ namespace RealmLauncher
         };
         private LauncherSettings _settings;
         private CancellationTokenSource _cts;
+        private readonly DispatcherTimer _serverStatusTimer;
+        private bool _isRefreshingServerStatus;
+        private string _serverStatusText = "Сервер: проверка...";
 
         private TextBox txtConfigUrl => MainPage.txtConfigUrl;
         private PasswordBox txtServerPassword => MainPage.txtServerPassword;
@@ -66,6 +70,8 @@ namespace RealmLauncher
             ApplyThemeAssets();
             LoadSettings();
             ShowMainPage();
+            _serverStatusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
+            _serverStatusTimer.Tick += async (_, __) => await RefreshServerStatusAsync();
             SizeChanged += MainWindow_SizeChanged;
             Loaded += MainWindow_OnLoadedSetClip;
             Loaded += MainWindow_Loaded;
@@ -116,6 +122,8 @@ namespace RealmLauncher
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             await LoadNewsAsync();
+            await RefreshServerStatusAsync();
+            _serverStatusTimer.Start();
             await CheckLauncherUpdateAsync(false);
         }
 
@@ -338,27 +346,13 @@ namespace RealmLauncher
                     _launcherService.DisableCinematicIntro(_settings.ConanExePath, AppendLog);
                 }
 
-                var steamReady = await EnsureSteamCmdInstalledAsync();
-                if (!steamReady)
-                {
-                    SetStatus("SteamCMD не установлен.");
-                    return;
-                }
-                SetProgress(StageSteamReady, "SteamCMD готов.");
+                await EnsureSteamClientReadyAsync();
+                _launcherService.EnsureSteamworksInitialized(AppendLog);
+                SetProgress(StageSteamReady, "Steam готов.");
 
                 SetStatus("Проверка актуальности модов...");
                 var analysis = await _launcherService.AnalyzeModsAsync(_settings.ConanExePath, config.Mods, AppendLog, _cts.Token);
                 SetProgress(StageAnalysisDone, "Проверка модов завершена.");
-
-                if (chkAutoSubscribe.IsChecked == true)
-                {
-                    var idsForSubscription = analysis.Updates
-                        .Where(x => string.Equals(x.Status, "Отсутствует", StringComparison.OrdinalIgnoreCase))
-                        .Select(x => x.ModId)
-                        .Distinct()
-                        .ToList();
-                    _launcherService.TryOpenWorkshopPagesForSubscription(idsForSubscription, AppendLog);
-                }
 
                 if (analysis.Updates.Count > 0)
                 {
@@ -372,10 +366,15 @@ namespace RealmLauncher
                         .GroupBy(x => x.ModId)
                         .Select(g => g.First())
                         .ToList();
-
-                    SetProgress(StageModsStart, "Проверяю и обновляю моды...");
-                    await _launcherService.SyncModsAsync(_settings.ConanExePath, uniqueUpdates, AppendLog, UpdateModSyncProgress, _cts.Token);
-                    SetProgress(StageModsEnd, "Моды синхронизированы.");
+                    SetProgress(StageModsStart, "Синхронизирую моды через Steamworks...");
+                    await _launcherService.SyncModsWithSteamworksAsync(
+                        _settings.ConanExePath,
+                        uniqueUpdates,
+                        chkAutoSubscribe.IsChecked == true,
+                        AppendLog,
+                        UpdateModSyncProgress,
+                        _cts.Token);
+                    SetProgress(StageModsEnd, "Моды синхронизированы через Steamworks.");
                 }
                 else
                 {
@@ -410,23 +409,38 @@ namespace RealmLauncher
             try
             {
                 ToggleUi(false);
-                if (_launcherService.IsSteamCmdInstalled())
+                if (IsSteamClientRunning())
                 {
                     UpdateSteamCmdStatus();
-                    AppendLog("SteamCMD уже установлен.");
-                    MessageBox.Show(this, "SteamCMD уже установлен и готов к работе.\n\nПуть:\n" + _launcherService.GetSteamCmdPath(),
+                    AppendLog("Steam уже запущен.");
+                    MessageBox.Show(this, "Steam уже запущен и готов к загрузке модов.",
                         "REALM RolePlay Launcher", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
 
-                var installed = await AskAndInstallSteamCmdAsync();
-                if (!installed)
+                try
                 {
-                    SetStatus("Установка SteamCMD отменена.");
-                    return;
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "steam://open/main",
+                        UseShellExecute = true
+                    });
+                }
+                catch
+                {
                 }
 
-                SetStatus("SteamCMD установлен и готов.");
+                for (var i = 0; i < 10; i++)
+                {
+                    if (IsSteamClientRunning())
+                    {
+                        break;
+                    }
+                    await Task.Delay(500);
+                }
+
+                UpdateSteamCmdStatus();
+                SetStatus(IsSteamClientRunning() ? "Steam запущен и готов." : "Steam не удалось запустить автоматически.");
             }
             catch (Exception ex)
             {
@@ -554,47 +568,120 @@ namespace RealmLauncher
                 MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
         }
 
-        private async Task<bool> EnsureSteamCmdInstalledAsync()
+        private static bool IsSteamClientRunning()
         {
-            if (_launcherService.IsSteamCmdInstalled())
+            try
             {
-                UpdateSteamCmdStatus();
-                return true;
+                return Process.GetProcessesByName("steam").Any();
             }
-
-            AppendLog("SteamCMD не найден.");
-            return await AskAndInstallSteamCmdAsync();
-        }
-
-        private async Task<bool> AskAndInstallSteamCmdAsync()
-        {
-            var steamCmdPath = _launcherService.GetSteamCmdPath();
-            var message =
-                "SteamCMD не установлен.\n\n" +
-                "Зачем он нужен:\n" +
-                "- автоматическая загрузка и обновление модов Conan Exiles;\n" +
-                "- проверка актуальности модов перед запуском.\n\n" +
-                "SteamCMD будет установлен в папку лаунчера:\n" +
-                steamCmdPath + "\n\n" +
-                "Установить сейчас?";
-
-            if (MessageBox.Show(this, message, "Установка SteamCMD", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+            catch
             {
-                UpdateSteamCmdStatus();
                 return false;
             }
+        }
 
-            SetStatus("Установка SteamCMD...");
-            await _launcherService.InstallSteamCmdAsync(AppendLog, _cts != null ? _cts.Token : CancellationToken.None);
-            UpdateSteamCmdStatus();
-            return true;
+        private async Task EnsureSteamClientReadyAsync()
+        {
+            if (IsSteamClientRunning())
+            {
+                UpdateSteamCmdStatus();
+                return;
+            }
+
+            AppendLog("Steam не запущен. Пытаюсь запустить Steam...");
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "steam://open/main",
+                    UseShellExecute = true
+                });
+            }
+            catch
+            {
+            }
+
+            for (var i = 0; i < 20; i++)
+            {
+                if (IsSteamClientRunning())
+                {
+                    UpdateSteamCmdStatus();
+                    return;
+                }
+                await Task.Delay(500);
+            }
+
+            throw new InvalidOperationException("Steam не запущен. Запустите клиент Steam и повторите.");
         }
 
         private void UpdateSteamCmdStatus()
         {
-            lblSteamCmdStatus.Text = _launcherService.IsSteamCmdInstalled()
-                ? "SteamCMD: установлен"
-                : "SteamCMD: не установлен";
+            var steamText = IsSteamClientRunning()
+                ? "Steam: запущен"
+                : "Steam: не запущен";
+            lblSteamCmdStatus.Text = steamText + " | " + _serverStatusText;
+        }
+
+        private async Task RefreshServerStatusAsync()
+        {
+            if (_isRefreshingServerStatus)
+            {
+                return;
+            }
+
+            _isRefreshingServerStatus = true;
+            try
+            {
+                _serverStatusText = "Сервер: проверка...";
+                UpdateSteamCmdStatus();
+
+                var configUrl = !string.IsNullOrWhiteSpace(txtConfigUrl.Text)
+                    ? txtConfigUrl.Text.Trim()
+                    : AppRuntimeConfig.ServerConfigUrl;
+
+                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8)))
+                {
+                    var config = await _launcherService.DownloadConfigAsync(configUrl, _allowedHosts, cts.Token);
+                    var host = ExtractHost(config.Ip);
+                    var queryPort = config.QueryPort ?? AppRuntimeConfig.DefaultQueryPort;
+                    var serverInfo = await _launcherService.QueryServerInfoAsync(host, queryPort, cts.Token);
+
+                    if (serverInfo.IsOnline)
+                    {
+                        _serverStatusText = string.Format("Сервер: онлайн {0}/{1}", serverInfo.Players, serverInfo.MaxPlayers);
+                    }
+                    else
+                    {
+                        _serverStatusText = "Сервер: офлайн";
+                    }
+                }
+            }
+            catch
+            {
+                _serverStatusText = "Сервер: недоступен";
+            }
+            finally
+            {
+                UpdateSteamCmdStatus();
+                _isRefreshingServerStatus = false;
+            }
+        }
+
+        private static string ExtractHost(string ipWithPort)
+        {
+            if (string.IsNullOrWhiteSpace(ipWithPort))
+            {
+                return string.Empty;
+            }
+
+            var raw = ipWithPort.Trim();
+            var colonIndex = raw.LastIndexOf(':');
+            if (colonIndex > 0 && raw.Count(c => c == ':') == 1)
+            {
+                return raw.Substring(0, colonIndex);
+            }
+
+            return raw;
         }
 
         private void StartProgress(string status)

@@ -6,6 +6,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -13,6 +14,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RealmLauncher.Models;
+using Steamworks;
 
 namespace RealmLauncher.Services
 {
@@ -22,6 +24,9 @@ namespace RealmLauncher.Services
         private const string SteamCmdZipUrl = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip";
         private const string WorkshopApiUrl = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/";
         private static readonly HttpClient HttpClient = new HttpClient();
+        private static readonly object SteamworksSync = new object();
+        private static bool _steamworksInitialized;
+        private static string _steamworksInitError;
 
         public LauncherService()
         {
@@ -41,6 +46,53 @@ namespace RealmLauncher.Services
         public bool IsSteamCmdInstalled()
         {
             return File.Exists(GetSteamCmdPath());
+        }
+
+        public bool IsSteamworksInitialized()
+        {
+            lock (SteamworksSync)
+            {
+                return _steamworksInitialized;
+            }
+        }
+
+        public void EnsureSteamworksInitialized(Action<string> log)
+        {
+            lock (SteamworksSync)
+            {
+                if (_steamworksInitialized)
+                {
+                    return;
+                }
+
+                if (!string.IsNullOrWhiteSpace(_steamworksInitError))
+                {
+                    throw new InvalidOperationException(_steamworksInitError);
+                }
+
+                try
+                {
+                    EnsureSteamAppIdFile();
+                    SteamClient.Init((uint)ConanSteamAppId, true);
+                    if (!SteamClient.IsValid)
+                    {
+                        throw new InvalidOperationException("Steamworks не инициализирован (SteamClient.IsValid=false).");
+                    }
+
+                    if (!SteamClient.IsLoggedOn)
+                    {
+                        throw new InvalidOperationException("Steam запущен, но пользователь не авторизован в клиенте Steam.");
+                    }
+
+                    _steamworksInitialized = true;
+                    log("Steamworks подключен. Пользователь: " + SteamClient.Name);
+                }
+                catch (Exception ex)
+                {
+                    _steamworksInitError = "Не удалось инициализировать Steamworks: " + ex.Message;
+                    throw new InvalidOperationException(_steamworksInitError, ex);
+                }
+            }
         }
 
         public async Task InstallSteamCmdAsync(Action<string> log, CancellationToken cancellationToken)
@@ -302,32 +354,139 @@ namespace RealmLauncher.Services
             });
         }
 
-        public void TryOpenWorkshopPagesForSubscription(IEnumerable<string> modIds, Action<string> log)
+        public async Task SyncModsWithSteamworksAsync(
+            string conanExePath,
+            IEnumerable<ModUpdateInfo> modsToUpdate,
+            bool autoSubscribe,
+            Action<string> log,
+            Action<double, double, string> progress,
+            CancellationToken cancellationToken)
         {
-            var ids = modIds != null
-                ? modIds.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList()
-                : new List<string>();
-
-            if (ids.Count == 0)
+            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
             {
+                throw new InvalidOperationException("Не найден ConanSandbox.exe. Укажите корректный путь.");
+            }
+
+            var updates = modsToUpdate != null
+                ? modsToUpdate.Where(x => x != null && !string.IsNullOrWhiteSpace(x.ModId))
+                    .GroupBy(x => x.ModId)
+                    .Select(g => g.First())
+                    .ToList()
+                : new List<ModUpdateInfo>();
+
+            if (updates.Count == 0)
+            {
+                log("Нет модов для синхронизации через Steamworks.");
                 return;
             }
 
-            log(string.Format("Автоподписка: открывтие страницы Workshop для {0} новых модов.", ids.Count));
-            foreach (var id in ids)
+            EnsureSteamworksInitialized(log);
+            var workshopContentRoot = ResolveWorkshopContentRoot(conanExePath);
+            var processed = 0d;
+
+            for (var i = 0; i < updates.Count; i++)
             {
-                try
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var update = updates[i];
+                var modLabel = string.Format("{0}/{1}", update.ModId, update.PakName);
+                log(string.Format("Обновляю мод {0}/{1}: {2}", i + 1, updates.Count, modLabel));
+                progress?.Invoke(processed, updates.Count, modLabel);
+
+                ulong rawId;
+                if (!ulong.TryParse(update.ModId, out rawId))
                 {
-                    Process.Start(new ProcessStartInfo
+                    throw new InvalidOperationException("Некорректный id мода: " + update.ModId);
+                }
+
+                var publishedFileId = (Steamworks.Data.PublishedFileId)rawId;
+                var queried = await SteamUGC.QueryFileAsync(publishedFileId).ConfigureAwait(false);
+                if (!queried.HasValue)
+                {
+                    throw new InvalidOperationException("Steamworks не вернул данные для мода " + update.ModId);
+                }
+
+                var item = queried.Value;
+                if (autoSubscribe && !item.IsSubscribed)
+                {
+                    var subscribed = await item.Subscribe().ConfigureAwait(false);
+                    if (!subscribed)
                     {
-                        FileName = "steam://url/CommunityFilePage/" + id,
-                        UseShellExecute = true
-                    });
+                        throw new InvalidOperationException("Не удалось подписаться на мод " + update.ModId + " через Steamworks.");
+                    }
+                    log("Подписка оформлена: " + update.ModId);
                 }
-                catch
+                else if (!autoSubscribe && !item.IsSubscribed)
                 {
-                    // Пропускаем, если клиент Steam недоступен.
+                    throw new InvalidOperationException(
+                        "Мод " + update.ModId + " не подписан в Workshop, а автоподписка отключена. " +
+                        "Включите опцию \"Авто-подписка на моды Workshop\".");
                 }
+
+                var needsDownload = !item.IsInstalled || item.NeedsUpdate || string.Equals(update.Status, "Отсутствует", StringComparison.OrdinalIgnoreCase);
+                if (needsDownload)
+                {
+                    var ok = await item.DownloadAsync(
+                        fraction =>
+                        {
+                            var clamped = Math.Max(0d, Math.Min(1d, fraction));
+                            progress?.Invoke(processed + clamped, updates.Count, modLabel);
+                        },
+                        1800,
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (!ok)
+                    {
+                        throw new InvalidOperationException("Steam не смог завершить загрузку мода " + update.ModId);
+                    }
+                }
+
+                var pakPath = Path.Combine(workshopContentRoot, update.ModId, update.PakName);
+                var exists = await WaitForFileAsync(pakPath, TimeSpan.FromSeconds(20), cancellationToken).ConfigureAwait(false);
+                if (!exists)
+                {
+                    throw new InvalidOperationException("После загрузки не найден файл мода: " + pakPath);
+                }
+
+                processed += 1d;
+                progress?.Invoke(processed, updates.Count, modLabel);
+                log(string.Format("Готово: {0}/{1}", (int)processed, updates.Count));
+            }
+
+            log("Синхронизация модов через Steamworks завершена.");
+        }
+
+        public async Task<ServerQueryInfo> QueryServerInfoAsync(string host, int queryPort, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(host))
+            {
+                throw new InvalidOperationException("Не указан хост сервера для query.");
+            }
+
+            const string queryString = "Source Engine Query";
+            var queryPacket = new List<byte> { 0xFF, 0xFF, 0xFF, 0xFF, 0x54 };
+            queryPacket.AddRange(Encoding.ASCII.GetBytes(queryString));
+            queryPacket.Add(0x00);
+
+            using (var udp = new UdpClient())
+            {
+                udp.Client.ReceiveTimeout = 3500;
+                udp.Client.SendTimeout = 3500;
+
+                var endpoint = new IPEndPoint(Dns.GetHostAddresses(host).First(), queryPort);
+                await udp.SendAsync(queryPacket.ToArray(), queryPacket.Count, endpoint).ConfigureAwait(false);
+                var response = await ReceiveWithCancellationAsync(udp, cancellationToken).ConfigureAwait(false);
+
+                if (response.Length >= 9 && response[4] == 0x41)
+                {
+                    var challenge = response.Skip(5).Take(4).ToArray();
+                    var challengePacket = new List<byte>(queryPacket);
+                    challengePacket.AddRange(challenge);
+                    await udp.SendAsync(challengePacket.ToArray(), challengePacket.Count, endpoint).ConfigureAwait(false);
+                    response = await ReceiveWithCancellationAsync(udp, cancellationToken).ConfigureAwait(false);
+                }
+
+                return ParseA2SInfo(response);
             }
         }
 
@@ -353,6 +512,43 @@ namespace RealmLauncher.Services
                     entry.ExtractToFile(destinationPath, true);
                 }
             }
+        }
+
+        private static void EnsureSteamAppIdFile()
+        {
+            var appIdPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "steam_appid.txt");
+            if (!File.Exists(appIdPath))
+            {
+                File.WriteAllText(appIdPath, ConanSteamAppId.ToString());
+                return;
+            }
+
+            var current = File.ReadAllText(appIdPath).Trim();
+            if (!string.Equals(current, ConanSteamAppId.ToString(), StringComparison.Ordinal))
+            {
+                File.WriteAllText(appIdPath, ConanSteamAppId.ToString());
+            }
+        }
+
+        private static async Task<bool> WaitForFileAsync(string fullPath, TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            if (File.Exists(fullPath))
+            {
+                return true;
+            }
+
+            var started = DateTime.UtcNow;
+            while (DateTime.UtcNow - started < timeout)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                await Task.Delay(300, cancellationToken).ConfigureAwait(false);
+                if (File.Exists(fullPath))
+                {
+                    return true;
+                }
+            }
+
+            return File.Exists(fullPath);
         }
 
         private static string ResolveConanSandboxDirectory(string conanExePath)
@@ -571,6 +767,75 @@ namespace RealmLauncher.Services
             }
 
             return string.Join(Environment.NewLine, lines.Skip(lines.Length - maxLines)).Trim();
+        }
+
+        private static async Task<byte[]> ReceiveWithCancellationAsync(UdpClient udp, CancellationToken cancellationToken)
+        {
+            var receiveTask = udp.ReceiveAsync();
+            var delayTask = Task.Delay(Timeout.Infinite, cancellationToken);
+            var completed = await Task.WhenAny(receiveTask, delayTask).ConfigureAwait(false);
+            if (completed == delayTask)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+
+            var result = await receiveTask.ConfigureAwait(false);
+            return result.Buffer;
+        }
+
+        private static ServerQueryInfo ParseA2SInfo(byte[] buffer)
+        {
+            var info = new ServerQueryInfo { IsOnline = false, Name = string.Empty, Players = 0, MaxPlayers = 0 };
+            if (buffer == null || buffer.Length < 6)
+            {
+                return info;
+            }
+
+            if (buffer[4] != 0x49)
+            {
+                return info;
+            }
+
+            var offset = 6; // 4*FF + header + protocol
+            var name = ReadNullTerminatedString(buffer, ref offset);
+            ReadNullTerminatedString(buffer, ref offset); // map
+            ReadNullTerminatedString(buffer, ref offset); // folder
+            ReadNullTerminatedString(buffer, ref offset); // game
+            offset += 2; // app id
+            if (offset + 1 >= buffer.Length)
+            {
+                return info;
+            }
+
+            var players = buffer[offset++];
+            var maxPlayers = buffer[offset];
+
+            info.IsOnline = true;
+            info.Name = name;
+            info.Players = players;
+            info.MaxPlayers = maxPlayers;
+            return info;
+        }
+
+        private static string ReadNullTerminatedString(byte[] buffer, ref int offset)
+        {
+            if (offset >= buffer.Length)
+            {
+                return string.Empty;
+            }
+
+            var start = offset;
+            while (offset < buffer.Length && buffer[offset] != 0x00)
+            {
+                offset++;
+            }
+
+            var value = Encoding.UTF8.GetString(buffer, start, Math.Max(0, offset - start));
+            if (offset < buffer.Length && buffer[offset] == 0x00)
+            {
+                offset++;
+            }
+            return value;
         }
 
         private sealed class SteamCmdResult

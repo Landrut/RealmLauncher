@@ -7,3 +7,6 @@ tools/command.txt
 *.zip
 /RealmLauncher/bin
 /RealmLauncher/obj
+/_steamworks_pkg_20
+/_steamworks_pkg_2024
+/_facepunch_pkg

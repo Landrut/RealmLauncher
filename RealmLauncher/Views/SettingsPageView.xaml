@@ -30,11 +30,11 @@
 			<Border Canvas.Left="56" Canvas.Top="62" Width="360" Height="320" CornerRadius="45" Background="{DynamicResource PanelFill}"/>
 			<Border Canvas.Left="479" Canvas.Top="62" Width="360" Height="320" CornerRadius="45" Background="{DynamicResource PanelFill}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
 
-			<TextBlock Canvas.Left="116" Canvas.Top="103" Width="230" Text="Проверка SteamCMD" TextAlignment="Center" Foreground="{DynamicResource TextMain}" FontSize="14" FontWeight="SemiBold"/>
+			<TextBlock Canvas.Left="116" Canvas.Top="103" Width="230" Text="Проверка Steam" TextAlignment="Center" Foreground="{DynamicResource TextMain}" FontSize="14" FontWeight="SemiBold"/>
 			<Rectangle Canvas.Left="106" Canvas.Top="124" Width="252" Height="3" Fill="#031531"/>
 			<Button x:Name="btnCheckSteamCmd" x:FieldModifier="public"
                     Canvas.Left="128" Canvas.Top="141" Width="205" Height="32"
-                    Content="Установить" Style="{DynamicResource PillButtonStyle}"/>
+                    Content="Проверить / Запустить" Style="{DynamicResource PillButtonStyle}"/>
 
 			<TextBlock Canvas.Left="106" Canvas.Top="178" Width="252" Text="Путь к ConanSandbox.exe" TextAlignment="Center" Foreground="{DynamicResource TextMain}" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Top"/>
 			<Rectangle Canvas.Left="106" Canvas.Top="202" Width="252" Height="3" Fill="#031531" HorizontalAlignment="Center" VerticalAlignment="Top"/>
@@ -61,7 +61,7 @@
                       Style="{DynamicResource RealmCheckBoxStyle}"
                       IsChecked="True"
                       Content="Авто-подписка на моды Workshop"
-                      ToolTip="Открывает страницы недостающих модов в Steam Workshop для быстрой подписки." HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                      ToolTip="Пытается автоматически подписать на моды через Steam; при необходимости открывает страницы модов в Workshop." HorizontalAlignment="Left" VerticalAlignment="Center"/>
 		</Canvas>
 	</Grid>
 </UserControl>
