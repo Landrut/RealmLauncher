@@ -392,6 +392,12 @@ namespace RealmLauncher.Services
                 var modLabel = string.Format("{0}/{1}", update.ModId, update.PakName);
                 log(string.Format("Обновляю мод {0}/{1}: {2}", i + 1, updates.Count, modLabel));
                 progress?.Invoke(processed, updates.Count, modLabel);
+                var pakPath = Path.Combine(workshopContentRoot, update.ModId, update.PakName);
+                var hadBefore = File.Exists(pakPath);
+                var beforeUtc = hadBefore ? File.GetLastWriteTimeUtc(pakPath) : DateTime.MinValue;
+                var beforeSize = hadBefore ? new FileInfo(pakPath).Length : -1L;
+                var isMissingByAnalysis = string.Equals(update.Status, "Отсутствует", StringComparison.OrdinalIgnoreCase);
+                var isOutdatedByAnalysis = string.Equals(update.Status, "Устарел", StringComparison.OrdinalIgnoreCase);
 
                 ulong rawId;
                 if (!ulong.TryParse(update.ModId, out rawId))
@@ -423,7 +429,7 @@ namespace RealmLauncher.Services
                         "Включите опцию \"Авто-подписка на моды Workshop\".");
                 }
 
-                var needsDownload = !item.IsInstalled || item.NeedsUpdate || string.Equals(update.Status, "Отсутствует", StringComparison.OrdinalIgnoreCase);
+                var needsDownload = isMissingByAnalysis || isOutdatedByAnalysis || !item.IsInstalled || item.NeedsUpdate;
                 if (needsDownload)
                 {
                     var ok = await item.DownloadAsync(
@@ -441,11 +447,57 @@ namespace RealmLauncher.Services
                     }
                 }
 
-                var pakPath = Path.Combine(workshopContentRoot, update.ModId, update.PakName);
                 var exists = await WaitForFileAsync(pakPath, TimeSpan.FromSeconds(20), cancellationToken).ConfigureAwait(false);
                 if (!exists)
                 {
                     throw new InvalidOperationException("После загрузки не найден файл мода: " + pakPath);
+                }
+
+                // Для "Устарел" дополнительно убеждаемся, что файл реально изменился.
+                if (isOutdatedByAnalysis)
+                {
+                    var changedAfterDownload = HasLocalModFileChanged(pakPath, hadBefore, beforeUtc, beforeSize);
+                    if (!changedAfterDownload)
+                    {
+                        log("Steam не обновил файл сразу. Применяю форс-обновление (отписка -> подписка -> загрузка)...");
+
+                        await item.Unsubscribe().ConfigureAwait(false);
+                        await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
+                        var resubscribed = await item.Subscribe().ConfigureAwait(false);
+                        if (!resubscribed)
+                        {
+                            throw new InvalidOperationException("Не удалось переподписаться на мод " + update.ModId + " для форс-обновления.");
+                        }
+
+                        var refreshed = await SteamUGC.QueryFileAsync(publishedFileId).ConfigureAwait(false);
+                        if (refreshed.HasValue)
+                        {
+                            item = refreshed.Value;
+                        }
+
+                        var forcedOk = await item.DownloadAsync(
+                            fraction =>
+                            {
+                                var clamped = Math.Max(0d, Math.Min(1d, fraction));
+                                progress?.Invoke(processed + clamped, updates.Count, modLabel);
+                            },
+                            1800,
+                            cancellationToken).ConfigureAwait(false);
+
+                        if (!forcedOk)
+                        {
+                            throw new InvalidOperationException("Форс-обновление мода " + update.ModId + " не завершилось успешно.");
+                        }
+
+                        exists = await WaitForFileAsync(pakPath, TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
+                        if (!exists || !HasLocalModFileChanged(pakPath, hadBefore, beforeUtc, beforeSize))
+                        {
+                            throw new InvalidOperationException(
+                                "Steam сообщил успешную загрузку, но локальный файл мода не изменился: " + pakPath);
+                        }
+
+                        log("Форс-обновление применено: " + update.ModId);
+                    }
                 }
 
                 processed += 1d;
@@ -549,6 +601,24 @@ namespace RealmLauncher.Services
             }
 
             return File.Exists(fullPath);
+        }
+
+        private static bool HasLocalModFileChanged(string fullPath, bool hadBefore, DateTime beforeUtc, long beforeSize)
+        {
+            if (!File.Exists(fullPath))
+            {
+                return false;
+            }
+
+            if (!hadBefore)
+            {
+                return true;
+            }
+
+            var info = new FileInfo(fullPath);
+            var afterUtc = info.LastWriteTimeUtc;
+            var afterSize = info.Length;
+            return afterUtc > beforeUtc.AddSeconds(1) || afterSize != beforeSize;
         }
 
         private static string ResolveConanSandboxDirectory(string conanExePath)

@@ -60,7 +60,7 @@
                     Style="{DynamicResource PillButtonStyle}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
 
             <TextBlock x:Name="lblStatus" x:FieldModifier="public"
-                       Canvas.Left="103" Canvas.Top="486" Width="470" TextAlignment="Right" Foreground="{DynamicResource TextMain}" FontSize="14" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                       Canvas.Left="103" Canvas.Top="486" Width="470" TextAlignment="Right" Foreground="{DynamicResource TextMain}" FontSize="14" FontWeight="Bold" HorizontalAlignment="Left" VerticalAlignment="Center" Text="Ожидание..."/>
             <ProgressBar x:Name="progressMods" x:FieldModifier="public"
                          Canvas.Left="578" Canvas.Top="489" Width="258" Height="12"
                          Minimum="0" Maximum="1000" Value="0"
