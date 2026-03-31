@@ -14,3 +14,5 @@ tools/command.txt
 *.pfx
 *.snk
 generate_update-manifest.ps1
+
+sign_manifest.ps1
