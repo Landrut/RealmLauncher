@@ -3,12 +3,12 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:views="clr-namespace:RealmLauncher.Views"
         Title="REALM RolePlay Launcher"
-        Width="900"
-        Height="600"
-        MinWidth="900"
-        MinHeight="600"
-        MaxWidth="900"
-        MaxHeight="600"
+        Width="1040"
+        Height="680"
+        MinWidth="1040"
+        MinHeight="680"
+        MaxWidth="1040"
+        MaxHeight="680"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -17,37 +17,54 @@
         Background="Transparent">
     <Window.Resources>
         <FontFamily x:Key="AppFont">pack://application:,,,/Assets/Fonts/#TT Norms Pro</FontFamily>
-        <SolidColorBrush x:Key="TextMain" Color="#DBE5F5"/>
-        <SolidColorBrush x:Key="TextMuted" Color="#9FB4D9"/>
-        <SolidColorBrush x:Key="PanelFill" Color="#2F4D8D" Opacity="0.55"/>
-        <SolidColorBrush x:Key="InputBg" Color="#0D1A34"/>
-        <SolidColorBrush x:Key="InputStroke" Color="#2B426D"/>
+        <SolidColorBrush x:Key="TextMain" Color="#E6F0FF"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#9FB5D8"/>
+        <SolidColorBrush x:Key="PanelFill" Color="#6A132B59"/>
+        <SolidColorBrush x:Key="InputBg" Color="#6F091733"/>
+        <SolidColorBrush x:Key="InputStroke" Color="#5E76B6"/>
+
+        <DropShadowEffect x:Key="SoftGlowBlue" Color="#3B93FF" BlurRadius="16" ShadowDepth="0" Opacity="0.45"/>
+        <DropShadowEffect x:Key="SoftGlowDark" Color="#020617" BlurRadius="12" ShadowDepth="2" Opacity="0.75"/>
 
         <Style x:Key="PillButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="30"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Foreground" Value="#EAF5FF"/>
+            <Setter Property="FontSize" Value="15"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Background" Value="#4A87EA"/>
-            <Setter Property="BorderBrush" Value="#031531"/>
+            <Setter Property="BorderBrush" Value="#6BA2FF"/>
             <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#5C8DE8" Offset="0"/>
+                        <GradientStop Color="#376FCE" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border x:Name="Root"
-                                CornerRadius="15"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}">
+                        <Grid>
+                            <Border x:Name="Root"
+                                    CornerRadius="18"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    Background="{TemplateBinding Background}"
+                                    Effect="{StaticResource SoftGlowBlue}"/>
+                            <Border Margin="2,2,2,15" CornerRadius="16" Opacity="0.5">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                        <GradientStop Color="#90D7FF" Offset="0"/>
+                                        <GradientStop Color="#00D7FF" Offset="1"/>
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                            </Border>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
+                        </Grid>
                         <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Root" Property="Background" Value="#5A95F8"/>
-                            </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Root" Property="Opacity" Value="0.5"/>
+                                <Setter TargetName="Root" Property="Opacity" Value="0.45"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -55,22 +72,38 @@
             </Setter>
         </Style>
 
+        <Style x:Key="CloseButtonStyle" TargetType="Button" BasedOn="{StaticResource PillButtonStyle}">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="Regular"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                        <GradientStop Color="#4C8BE9" Offset="0"/>
+                        <GradientStop Color="#2D66C5" Offset="1"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="TextInputStyle" TargetType="TextBox">
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="Padding" Value="14,0"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
             <Setter Property="Background" Value="{StaticResource InputBg}"/>
             <Setter Property="BorderBrush" Value="{StaticResource InputStroke}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
-                        <Border CornerRadius="10"
+                        <Border CornerRadius="20"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}">
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Effect="{StaticResource SoftGlowDark}">
                             <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
                         </Border>
                     </ControlTemplate>
@@ -79,21 +112,23 @@
         </Style>
 
         <Style x:Key="PasswordInputStyle" TargetType="PasswordBox">
-            <Setter Property="Height" Value="32"/>
-            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Height" Value="42"/>
+            <Setter Property="Padding" Value="14,0"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
             <Setter Property="Background" Value="{StaticResource InputBg}"/>
             <Setter Property="BorderBrush" Value="{StaticResource InputStroke}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="PasswordBox">
-                        <Border CornerRadius="16"
+                        <Border CornerRadius="21"
                                 Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}">
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Effect="{StaticResource SoftGlowDark}">
                             <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
                         </Border>
                     </ControlTemplate>
@@ -101,21 +136,67 @@
             </Setter>
         </Style>
 
+        <Style x:Key="RoundedLogTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
+            <Setter Property="Background" Value="#84071835"/>
+            <Setter Property="BorderBrush" Value="#658FD2"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="16,14"/>
+            <Setter Property="FontSize" Value="13.2"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border CornerRadius="18"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <Grid>
+                                <Border Margin="1" CornerRadius="17" BorderBrush="#2A3D66" BorderThickness="1" Opacity="0.65"/>
+                                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalScrollBarVisibility="Auto"/>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RoundedProgressBarStyle" TargetType="ProgressBar">
+            <Setter Property="Height" Value="11"/>
+            <Setter Property="Foreground" Value="#4DB1FF"/>
+            <Setter Property="Background" Value="#44162A52"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ProgressBar">
+                        <Border CornerRadius="7" Background="{TemplateBinding Background}" BorderBrush="#2A3F6A" BorderThickness="1">
+                            <Grid x:Name="PART_Track" ClipToBounds="True">
+                                <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="7" Background="{TemplateBinding Foreground}"/>
+                            </Grid>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="11"/>
+            <Setter Property="Background" Value="#37132857"/>
+        </Style>
+
         <Style x:Key="RealmCheckBoxStyle" TargetType="CheckBox">
             <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontSize" Value="14"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
                         <StackPanel Orientation="Horizontal">
-                            <Border x:Name="Mark" Width="18" Height="18" CornerRadius="6" Background="#D9D9D9" BorderBrush="#020617" BorderThickness="1" Margin="0,0,8,0">
-                                <Path x:Name="Tick" Data="M3,9 L7,13 L15,5" Stroke="#DBE5F5" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
+                            <Border x:Name="Mark" Width="22" Height="22" CornerRadius="7" Background="#D7DDE9" BorderBrush="#031531" BorderThickness="1" Margin="0,0,8,0">
+                                <Path x:Name="Tick" Data="M4,11 L9,16 L18,6" Stroke="#ECF4FF" StrokeThickness="2.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
                             </Border>
                             <ContentPresenter VerticalAlignment="Center"/>
                         </StackPanel>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Mark" Property="Background" Value="#4A87EA"/>
+                                <Setter TargetName="Mark" Property="Background" Value="#4C8BE9"/>
                                 <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -125,64 +206,162 @@
         </Style>
     </Window.Resources>
 
-    <Border CornerRadius="17" Background="#132D5F" SnapsToDevicePixels="True">
-    <Grid Background="#132D5F" ClipToBounds="True">
-        <Path Data="M891.429 0H8.57143C3.83756 0 0 8.9543 0 20V580C0 591.046 3.83756 600 8.57143 600H891.429C896.162 600 900 591.046 900 580V20C900 8.9543 896.162 0 891.429 0Z"
-              Stretch="Fill"
-              Opacity="0.35">
-            <Path.Fill>
-                <LinearGradientBrush MappingMode="Absolute" StartPoint="80,-44" EndPoint="900,600">
-                    <GradientStop Color="#EA020617" Offset="0"/>
-                    <GradientStop Color="#B81D75FA" Offset="0.47"/>
-                    <GradientStop Color="#B41A6BE4" Offset="0.53"/>
-                    <GradientStop Color="#EA020617" Offset="1"/>
-                </LinearGradientBrush>
-            </Path.Fill>
-        </Path>
+    <Border CornerRadius="22" Background="#152D56" SnapsToDevicePixels="True">
+        <Grid ClipToBounds="True">
+            <Rectangle Fill="#152D56"/>
+            <Rectangle Fill="#66040C23"/>
+            <Border BorderBrush="#436496" BorderThickness="1" CornerRadius="22"/>
 
-        <Border BorderBrush="#1E355F" BorderThickness="1" CornerRadius="17"/>
-        <Rectangle Height="2" Fill="#031531" VerticalAlignment="Top" Margin="0,76,0,0"/>
-        <Rectangle Height="54" Fill="#010C2A" VerticalAlignment="Bottom"/>
+            <Rectangle Height="78" VerticalAlignment="Top" Fill="#50183364"/>
+            <Rectangle Height="2" VerticalAlignment="Top" Margin="0,76,0,0" Fill="#020E27"/>
+            <Rectangle Height="54" VerticalAlignment="Bottom" Fill="#7A030D26"/>
 
-        <Grid Height="78" VerticalAlignment="Top" MouseLeftButtonDown="HeaderBar_OnMouseLeftButtonDown">
-            <Image x:Name="imgLogo" Width="146" Height="50" Margin="20,15,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+            <Grid Height="78" VerticalAlignment="Top" MouseLeftButtonDown="HeaderBar_OnMouseLeftButtonDown">
+                <Image x:Name="imgLogo" Width="152" Height="56" Margin="22,12,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
 
-            <Button x:Name="btnOpenSettings"
-                    Width="180"
-                    Margin="0,16,58,0"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Content="Настройки"
-                    Style="{StaticResource PillButtonStyle}"
-                    Click="BtnOpenSettings_OnClick"/>
+                <Button x:Name="btnOpenSettings"
+                        Width="184"
+                        Margin="0,22,64,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Content="Настройки"
+                        Style="{StaticResource PillButtonStyle}"
+                        Click="BtnOpenSettings_OnClick">
+                    <Button.Effect>
+                        <DropShadowEffect Color="#2E8EFF" BlurRadius="18" ShadowDepth="4" Direction="270" Opacity="0.55"/>
+                    </Button.Effect>
+                </Button>
 
-            <Button x:Name="btnBackToMain"
-                    Width="180"
-                    Margin="0,16,58,0"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Content="Главное меню"
-                    Style="{StaticResource PillButtonStyle}"
-                    Visibility="Collapsed"
-                    Click="BtnBackToMain_OnClick"/>
+                <Button x:Name="btnBackToMain"
+                        Width="184"
+                        Margin="0,22,64,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Content="Главное меню"
+                        Style="{StaticResource PillButtonStyle}"
+                        Visibility="Collapsed"
+                        Click="BtnBackToMain_OnClick"/>
 
-            <Button x:Name="btnCloseApp"
-                    Width="34"
-                    Height="34"
-                    Margin="0,14,12,0"
-                    HorizontalAlignment="Right"
-                    VerticalAlignment="Top"
-                    Content="✕"
-                    ToolTip="Закрыть"
-                    Style="{StaticResource PillButtonStyle}"
-                    FontSize="16"
-                    Click="BtnCloseApp_OnClick"/>
+                <Button x:Name="btnCloseApp"
+                        Margin="986,0,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Content="✕"
+                        ToolTip="Закрыть"
+                        Style="{StaticResource CloseButtonStyle}"
+                        Click="BtnCloseApp_OnClick" Height="35" Width="35"/>
+            </Grid>
+
+            <Grid Margin="0,78,0,54">
+                <Grid x:Name="MainPageGrid" Margin="24,14,24,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="1*"/>
+                        <ColumnDefinition Width="28"/>
+                        <ColumnDefinition Width="1*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="46"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0">
+                            <TextBlock Text="Новости обновлений" FontSize="32" FontWeight="Bold" Foreground="#E5F0FF" HorizontalAlignment="Center"/>
+                            <Rectangle Height="2.5" Fill="#6DB2FF" Margin="22,3,22,0" Opacity="0.8"/>
+                            <Rectangle Height="1" Fill="#8FBFF9" Margin="10,6,10,0" Opacity="0.55"/>
+                        </StackPanel>
+                        <Border Grid.Row="1" Margin="4,10,4,0" CornerRadius="28" Background="{DynamicResource PanelFill}" BorderBrush="#5E7DB5" BorderThickness="1.2">
+                            <Border Margin="9" CornerRadius="22" BorderBrush="#2B3D61" BorderThickness="1" Background="#6B081B39">
+                                <TextBox x:Name="txtNewsBox" Margin="9" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Style="{DynamicResource RoundedLogTextBoxStyle}" Text="Загрузка новостей..."/>
+                            </Border>
+                        </Border>
+                    </Grid>
+
+                    <Grid Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="86"/>
+                            <RowDefinition Height="84"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel HorizontalAlignment="Center" Width="482" Height="43" VerticalAlignment="Center">
+                            <TextBlock Text="Добро пожаловать в лаунчер REALM RP." FontSize="16" FontWeight="SemiBold" Foreground="#ECF4FF" HorizontalAlignment="Center"/>
+                            <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="#ECF4FF" Width="395" HorizontalAlignment="Center"><Run Text="Легкий, а главное - быстрый доступ к "/><Run Language="ru-ru" Text="н"/><Run Text="ашему серверу."/></TextBlock>
+                        </StackPanel>
+                        <Grid Margin="0,84,0,10" Grid.RowSpan="2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190"/>
+                                <ColumnDefinition Width="14"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Grid.ColumnSpan="3" Margin="4,0,246,0">
+                                <TextBlock Text="Пароль сервера" FontSize="16" FontWeight="Bold" Foreground="#ECF4FF" HorizontalAlignment="Center"/>
+                                <PasswordBox x:Name="txtServerPasswordInput" Style="{DynamicResource PasswordInputStyle}" Height="36" Width="213"/>
+                            </StackPanel>
+                            <Button x:Name="btnPlayMain" Grid.Column="2" Height="NaN" Margin="37,20,10,20" Content="Запуск игры" Style="{StaticResource PillButtonStyle}" Foreground="#FFDDEFFF" BorderBrush="#FF75A8FF">
+                                <Button.Effect>
+                                    <DropShadowEffect Color="#2E8EFF" BlurRadius="18" ShadowDepth="4" Direction="270" Opacity="0.55"/>
+                                </Button.Effect>
+                            </Button>
+                        </Grid>
+                        <Border Grid.Row="2" CornerRadius="28" Background="{DynamicResource PanelFill}" BorderBrush="#5E7DB5" BorderThickness="1.2">
+                            <Border Margin="9" CornerRadius="22" BorderBrush="#2B3D61" BorderThickness="1" Background="#6B081B39">
+                                <TextBox x:Name="txtLogBox" Margin="10" IsReadOnly="True" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" Style="{DynamicResource RoundedLogTextBoxStyle}"/>
+                            </Border>
+                        </Border>
+                        <TextBox x:Name="txtConfigUrlInput" Visibility="Collapsed" Style="{DynamicResource TextInputStyle}"/>
+                    </Grid>
+                </Grid>
+
+                <views:SettingsPageView x:Name="SettingsPage" Visibility="Collapsed"/>
+            </Grid>
+
+            <Grid x:Name="FooterBar" Height="54" VerticalAlignment="Bottom" Margin="18,0,18,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="120"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="250"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="280"/>
+                </Grid.ColumnDefinitions>
+
+                <Button x:Name="btnDiscord" Grid.Column="0" Width="98" Height="34" HorizontalAlignment="Left" VerticalAlignment="Center" Content="Discord" Style="{StaticResource PillButtonStyle}" Margin="17,0,0,0"/>
+                <TextBlock x:Name="lblSteamCmdStatus" Grid.Column="1" VerticalAlignment="Center" Foreground="{DynamicResource TextMuted}" FontSize="15" Text="Steam: неизвестно"/>
+                <TextBlock Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#7096D4" FontSize="16" Text="|"/>
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse x:Name="serverStatusDot" Width="11" Height="11" Fill="#F4C542" Stroke="#0A1328" StrokeThickness="1"/>
+                    <TextBlock x:Name="lblServerStatusText" Margin="6,0,0,0" Foreground="#D7E8FF" FontSize="15" Text="Сервер: проверка..."/>
+                </StackPanel>
+                <TextBlock Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#7096D4" FontSize="16" Text="|"/>
+                <TextBlock x:Name="lblPlayersCount" Grid.Column="5" VerticalAlignment="Center" Foreground="#BBD2F9" FontSize="15" Text="Игроки: --/--"/>
+                <TextBlock x:Name="lblStatus"
+                           Grid.Column="7"
+                           Width="242"
+                           Margin="0,0,8,0"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Right"
+                           TextAlignment="Right"
+                           Foreground="{DynamicResource TextMain}"
+                           FontSize="16"
+                           FontWeight="Bold"
+                           Text="Ожидание..."
+                           TextTrimming="CharacterEllipsis"
+                           ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                <ProgressBar x:Name="progressMods"
+                             Grid.Column="9"
+                             Height="10"
+                             Minimum="0"
+                             Maximum="1000"
+                             Value="0"
+                             Foreground="#4AAFFF"
+                             Background="#2A406A"
+                             Style="{DynamicResource RoundedProgressBarStyle}"
+                             VerticalAlignment="Center" Margin="0,0,66,0"/>
+            </Grid>
         </Grid>
-
-        <Grid Margin="0,78,0,54">
-            <views:MainPageView x:Name="MainPage"/>
-            <views:SettingsPageView x:Name="SettingsPage" Visibility="Collapsed"/>
-        </Grid>
-    </Grid>
     </Border>
 </Window>

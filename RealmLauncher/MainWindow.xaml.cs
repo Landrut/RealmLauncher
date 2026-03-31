@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using RealmLauncher.Models;
 using RealmLauncher.Services;
+using RealmLauncher.Ui;
 using RealmLauncher.Views;
 using System;
 using System.Diagnostics;
@@ -44,17 +45,22 @@ namespace RealmLauncher
         private CancellationTokenSource _cts;
         private readonly DispatcherTimer _serverStatusTimer;
         private bool _isRefreshingServerStatus;
-        private string _serverStatusText = "Сервер: проверка...";
+        private string _serverStatusText = "проверка...";
+        private string _serverPlayersText = "Игроки: --/--";
+        private Brush _serverStatusBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4C542"));
 
-        private TextBox txtConfigUrl => MainPage.txtConfigUrl;
-        private PasswordBox txtServerPassword => MainPage.txtServerPassword;
-        private TextBox txtNews => MainPage.txtNews;
-        private TextBlock lblSteamCmdStatus => MainPage.lblSteamCmdStatus;
-        private TextBox txtLog => MainPage.txtLog;
-        private TextBlock lblStatus => MainPage.lblStatus;
-        private ProgressBar progressMods => MainPage.progressMods;
-        private Button btnPlay => MainPage.btnPlay;
-        private Button btnDiscord => MainPage.btnDiscord;
+        private TextBox txtConfigUrl => txtConfigUrlInput;
+        private PasswordBox txtServerPassword => txtServerPasswordInput;
+        private TextBox txtNews => txtNewsBox;
+        private TextBlock lblSteamStatusCtl => lblSteamCmdStatus;
+        private System.Windows.Shapes.Ellipse serverStatusDotCtl => serverStatusDot;
+        private TextBlock lblServerStatusCtl => lblServerStatusText;
+        private TextBlock lblPlayersCtl => lblPlayersCount;
+        private TextBox txtLog => txtLogBox;
+        private TextBlock lblStatusCtl => lblStatus;
+        private ProgressBar progressModsCtl => progressMods;
+        private Button btnPlay => btnPlayMain;
+        private Button btnDiscordCtl => btnDiscord;
 
         private TextBox txtConanExe => SettingsPage.txtConanExe;
         private CheckBox chkDisableIntro => SettingsPage.chkDisableIntro;
@@ -94,8 +100,8 @@ namespace RealmLauncher
 
         private void WirePageEvents()
         {
-            MainPage.btnPlay.Click += BtnPlay_OnClick;
-            MainPage.btnDiscord.Click += BtnOpenDiscord_OnClick;
+            btnPlay.Click += BtnPlay_OnClick;
+            btnDiscordCtl.Click += BtnOpenDiscord_OnClick;
             SettingsPage.btnCheckSteamCmd.Click += BtnCheckSteamCmd_OnClick;
             SettingsPage.btnCheckUpdates.Click += BtnCheckUpdates_OnClick;
             SettingsPage.btnBrowseConanExe.Click += BtnBrowseConanExe_OnClick;
@@ -111,11 +117,7 @@ namespace RealmLauncher
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this,
-                    "Не удалось открыть ссылку Discord:\n" + ex.Message,
-                    "REALM RolePlay Launcher",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
+                ShowError("Не удалось открыть ссылку Discord:\n" + ex.Message);
             }
         }
 
@@ -203,7 +205,7 @@ namespace RealmLauncher
 
         private void ShowMainPage()
         {
-            MainPage.Visibility = Visibility.Visible;
+            MainPageGrid.Visibility = Visibility.Visible;
             SettingsPage.Visibility = Visibility.Collapsed;
             btnOpenSettings.Visibility = Visibility.Visible;
             btnBackToMain.Visibility = Visibility.Collapsed;
@@ -211,7 +213,7 @@ namespace RealmLauncher
 
         private void ShowSettingsPage()
         {
-            MainPage.Visibility = Visibility.Collapsed;
+            MainPageGrid.Visibility = Visibility.Collapsed;
             SettingsPage.Visibility = Visibility.Visible;
             btnOpenSettings.Visibility = Visibility.Collapsed;
             btnBackToMain.Visibility = Visibility.Visible;
@@ -396,7 +398,7 @@ namespace RealmLauncher
             {
                 SetStatus("Ошибка.");
                 AppendLog("ОШИБКА: " + ex.Message);
-                MessageBox.Show(this, ex.Message, "REALM RolePlay Launcher", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowError(ex.Message);
             }
             finally
             {
@@ -413,8 +415,7 @@ namespace RealmLauncher
                 {
                     UpdateSteamCmdStatus();
                     AppendLog("Steam уже запущен.");
-                    MessageBox.Show(this, "Steam уже запущен и готов к загрузке модов.",
-                        "REALM RolePlay Launcher", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowInfo("Steam уже запущен и готов к загрузке модов.");
                     return;
                 }
 
@@ -446,7 +447,7 @@ namespace RealmLauncher
             {
                 SetStatus("Ошибка.");
                 AppendLog("ОШИБКА: " + ex.Message);
-                MessageBox.Show(this, ex.Message, "REALM RolePlay Launcher", MessageBoxButton.OK, MessageBoxImage.Error);
+                ShowError(ex.Message);
             }
             finally
             {
@@ -497,7 +498,7 @@ namespace RealmLauncher
             btnCheckSteamCmd.IsEnabled = enabled;
             btnBrowseConanExe.IsEnabled = enabled;
             btnPlay.IsEnabled = enabled;
-            btnDiscord.IsEnabled = enabled;
+            btnDiscordCtl.IsEnabled = enabled;
             btnBackToMain.IsEnabled = enabled;
             btnOpenSettings.IsEnabled = enabled;
         }
@@ -510,7 +511,7 @@ namespace RealmLauncher
                 var enteredHash = ComputeSha256(entered);
                 if (!string.Equals(enteredHash, config.PasswordSha256.Trim(), StringComparison.OrdinalIgnoreCase))
                 {
-                    MessageBox.Show(this, "Неверный пароль сервера.", "REALM RolePlay Launcher", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    ShowWarning("Неверный пароль сервера.");
                     return false;
                 }
             }
@@ -518,7 +519,7 @@ namespace RealmLauncher
             {
                 if (!string.Equals(entered, config.Password, StringComparison.Ordinal))
                 {
-                    MessageBox.Show(this, "Неверный пароль сервера.", "REALM RolePlay Launcher", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    ShowWarning("Неверный пароль сервера.");
                     return false;
                 }
             }
@@ -564,8 +565,7 @@ namespace RealmLauncher
                 string.Join("\n", lines) +
                 "\n\nПродолжить?";
 
-            return MessageBox.Show(this, message, "Подтверждение обновления модов",
-                MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+            return AskYesNo(message, "Подтверждение обновления модов");
         }
 
         private static bool IsSteamClientRunning()
@@ -619,7 +619,10 @@ namespace RealmLauncher
             var steamText = IsSteamClientRunning()
                 ? "Steam: запущен"
                 : "Steam: не запущен";
-            lblSteamCmdStatus.Text = steamText + " | " + _serverStatusText;
+            lblSteamStatusCtl.Text = steamText;
+            lblServerStatusCtl.Text = "Сервер: " + _serverStatusText;
+            lblPlayersCtl.Text = _serverPlayersText;
+            serverStatusDotCtl.Fill = _serverStatusBrush;
         }
 
         private async Task RefreshServerStatusAsync()
@@ -632,7 +635,9 @@ namespace RealmLauncher
             _isRefreshingServerStatus = true;
             try
             {
-                _serverStatusText = "Сервер: проверка...";
+                _serverStatusText = "проверка...";
+                _serverPlayersText = "Игроки: --/--";
+                _serverStatusBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4C542"));
                 UpdateSteamCmdStatus();
 
                 var configUrl = !string.IsNullOrWhiteSpace(txtConfigUrl.Text)
@@ -648,17 +653,23 @@ namespace RealmLauncher
 
                     if (serverInfo.IsOnline)
                     {
-                        _serverStatusText = string.Format("Сервер: онлайн {0}/{1}", serverInfo.Players, serverInfo.MaxPlayers);
+                        _serverStatusText = "онлайн";
+                        _serverPlayersText = string.Format("Игроки: {0}/{1}", serverInfo.Players, serverInfo.MaxPlayers);
+                        _serverStatusBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4BE37D"));
                     }
                     else
                     {
-                        _serverStatusText = "Сервер: офлайн";
+                        _serverStatusText = "офлайн";
+                        _serverPlayersText = "Игроки: 0/0";
+                        _serverStatusBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF6666"));
                     }
                 }
             }
             catch
             {
-                _serverStatusText = "Сервер: недоступен";
+                _serverStatusText = "недоступен";
+                _serverPlayersText = "Игроки: --/--";
+                _serverStatusBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF6666"));
             }
             finally
             {
@@ -686,9 +697,9 @@ namespace RealmLauncher
 
         private void StartProgress(string status)
         {
-            progressMods.Minimum = 0;
-            progressMods.Maximum = ProgressScale;
-            progressMods.Value = 0;
+            progressModsCtl.Minimum = 0;
+            progressModsCtl.Maximum = ProgressScale;
+            progressModsCtl.Value = 0;
             if (!string.IsNullOrWhiteSpace(status))
             {
                 SetStatus(status);
@@ -698,7 +709,7 @@ namespace RealmLauncher
         private void SetProgress(double fraction, string status)
         {
             var clamped = Math.Max(0d, Math.Min(1d, fraction));
-            progressMods.Value = (int)Math.Round(clamped * ProgressScale);
+            progressModsCtl.Value = (int)Math.Round(clamped * ProgressScale);
             if (!string.IsNullOrWhiteSpace(status))
             {
                 SetStatus(status);
@@ -730,8 +741,7 @@ namespace RealmLauncher
             {
                 if (userInitiated)
                 {
-                    MessageBox.Show(this, "URL манифеста обновлений не задан (UpdateManifestUrl в AppRuntimeConfig).",
-                        "Проверка обновлений", MessageBoxButton.OK, MessageBoxImage.Information);
+                    ShowInfo("URL манифеста обновлений не задан (UpdateManifestUrl в AppRuntimeConfig).", "Проверка обновлений");
                 }
                 return;
             }
@@ -751,8 +761,7 @@ namespace RealmLauncher
                     if (userInitiated)
                     {
                         SetProgress(1.0, "Обновлений не найдено.");
-                        MessageBox.Show(this, "Установлена последняя версия (" + currentVersion + ").",
-                            "Проверка обновлений", MessageBoxButton.OK, MessageBoxImage.Information);
+                        ShowInfo("Установлена последняя версия (" + currentVersion + ").", "Проверка обновлений");
                     }
                     return;
                 }
@@ -770,7 +779,7 @@ namespace RealmLauncher
                     "Новая версия: " + result.LatestVersion + "\n" +
                     "Размер: " + sizeText + changelog + "\n\nСкачать и установить сейчас?";
 
-                if (MessageBox.Show(this, message, "Обновление лаунчера", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                if (!AskYesNo(message, "Обновление лаунчера"))
                 {
                     return;
                 }
@@ -781,8 +790,7 @@ namespace RealmLauncher
             {
                 if (userInitiated)
                 {
-                    MessageBox.Show(this, "Не удалось проверить/установить обновление:\n" + ex.Message,
-                        "Обновление лаунчера", MessageBoxButton.OK, MessageBoxImage.Error);
+                    ShowError("Не удалось проверить/установить обновление:\n" + ex.Message, "Обновление лаунчера");
                 }
                 AppendLog("ОШИБКА обновления лаунчера: " + ex.Message);
             }
@@ -837,9 +845,29 @@ namespace RealmLauncher
             return string.Format("{0:0.##} {1}", size, units[unit]);
         }
 
+        private void ShowInfo(string message, string title = "REALM RolePlay Launcher")
+        {
+            RealmDialog.Show(this, title, message, RealmDialogButtons.Ok, RealmDialogType.Info);
+        }
+
+        private void ShowWarning(string message, string title = "REALM RolePlay Launcher")
+        {
+            RealmDialog.Show(this, title, message, RealmDialogButtons.Ok, RealmDialogType.Warning);
+        }
+
+        private void ShowError(string message, string title = "REALM RolePlay Launcher")
+        {
+            RealmDialog.Show(this, title, message, RealmDialogButtons.Ok, RealmDialogType.Error);
+        }
+
+        private bool AskYesNo(string message, string title = "REALM RolePlay Launcher")
+        {
+            return RealmDialog.Show(this, title, message, RealmDialogButtons.YesNo, RealmDialogType.Question) == MessageBoxResult.Yes;
+        }
+
         private void SetStatus(string text)
         {
-            lblStatus.Text = text;
+            lblStatusCtl.Text = text;
         }
 
         private void AppendLog(string line)

@@ -4,64 +4,129 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             Width="900"
-             Height="468"
-             d:DesignWidth="900"
-             d:DesignHeight="600"
+             d:DesignWidth="1040"
+             d:DesignHeight="548"
              Background="Transparent">
-	<Grid>
-		<Grid Visibility="Collapsed" d:Visibility="Visible" IsHitTestVisible="False">
-			<Grid.Background>
-				<LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-					<GradientStop Color="#132D5F" Offset="0"/>
-					<GradientStop Color="#102750" Offset="1"/>
-				</LinearGradientBrush>
-			</Grid.Background>
-			<Rectangle Height="78" VerticalAlignment="Top" Fill="#16356B"/>
-			<Rectangle Height="2" VerticalAlignment="Top" Margin="0,76,0,0" Fill="#031531"/>
-			<Rectangle Height="54" VerticalAlignment="Bottom" Fill="#010C2A"/>
-			<TextBlock Text="REALM" Foreground="#F7B74D" FontSize="46" FontWeight="Bold" Margin="20,8,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-			<Button Content="Главное меню" Width="180" Height="30" Margin="0,16,58,0" HorizontalAlignment="Right" VerticalAlignment="Top"/>
-		</Grid>
+    <Grid Margin="24,14,24,10">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="1*"/>
+            <ColumnDefinition Width="28"/>
+            <ColumnDefinition Width="1*"/>
+        </Grid.ColumnDefinitions>
 
-		<Canvas d:Margin="0,78,0,54">
-			<TextBlock Canvas.Left="184" Text="Настройки" Foreground="{DynamicResource TextMain}" FontSize="18" FontWeight="Bold" Canvas.Top="33" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+        <Grid Grid.Column="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="48"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-			<Border Canvas.Left="56" Canvas.Top="62" Width="360" Height="320" CornerRadius="45" Background="{DynamicResource PanelFill}"/>
-			<Border Canvas.Left="479" Canvas.Top="62" Width="360" Height="320" CornerRadius="45" Background="{DynamicResource PanelFill}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+            <TextBlock Grid.Row="0"
+                       Text="Настройки"
+                       FontSize="32"
+                       FontWeight="Bold"
+                       Foreground="#E5F0FF"
+                       HorizontalAlignment="Center"/>
 
-			<TextBlock Canvas.Left="116" Canvas.Top="103" Width="230" Text="Проверка Steam" TextAlignment="Center" Foreground="{DynamicResource TextMain}" FontSize="14" FontWeight="SemiBold"/>
-			<Rectangle Canvas.Left="106" Canvas.Top="124" Width="252" Height="3" Fill="#031531"/>
-			<Button x:Name="btnCheckSteamCmd" x:FieldModifier="public"
-                    Canvas.Left="128" Canvas.Top="141" Width="205" Height="32"
-                    Content="Проверить / Запустить" Style="{DynamicResource PillButtonStyle}"/>
+            <Border Grid.Row="1"
+                    Margin="4,10,4,0"
+                    CornerRadius="28"
+                    Background="{DynamicResource PanelFill}"
+                    BorderBrush="#5E7DB5"
+                    BorderThickness="1.2">
+                <Grid Margin="24,20,24,20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="64"/>
+                        <RowDefinition Height="80"/>
+                        <RowDefinition Height="80"/>
+                        <RowDefinition Height="24"/>
+                        <RowDefinition Height="4"/>
+                        <RowDefinition Height="22"/>
+                        <RowDefinition Height="58"/>
+                    </Grid.RowDefinitions>
 
-			<TextBlock Canvas.Left="106" Canvas.Top="178" Width="252" Text="Путь к ConanSandbox.exe" TextAlignment="Center" Foreground="{DynamicResource TextMain}" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Top"/>
-			<Rectangle Canvas.Left="106" Canvas.Top="202" Width="252" Height="3" Fill="#031531" HorizontalAlignment="Center" VerticalAlignment="Top"/>
-			<TextBox x:Name="txtConanExe" x:FieldModifier="public"
-                     Canvas.Left="106" Canvas.Top="234" Width="252" Style="{DynamicResource TextInputStyle}" Visibility="Collapsed"/>
-			<Button x:Name="btnBrowseConanExe" x:FieldModifier="public"
-                    Canvas.Left="128" Canvas.Top="213" Width="206" Height="32"
-                    Content="Обзор" Style="{DynamicResource PillButtonStyle}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+                    <TextBlock Grid.Row="1"
+                               Text="Проверка Steam"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource TextMain}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Top" Height="21" Width="128"/>
+                    <Button x:Name="btnCheckSteamCmd" x:FieldModifier="public"
+                            Grid.Row="1"
+                            Width="230"
+                            Content="Проверить / Запустить"
+                            Style="{DynamicResource PillButtonStyle}"
+                            HorizontalAlignment="Center" Margin="0,26,0,24"/>
 
-			<TextBlock Canvas.Left="106" Canvas.Top="250" Width="252" Text="Обновление лаунчера" TextAlignment="Center" Foreground="{DynamicResource TextMain}" FontSize="14" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Top"/>
-			<Rectangle Canvas.Left="106" Canvas.Top="274" Width="252" Height="3" Fill="#031531" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-			<Button x:Name="btnCheckUpdates" x:FieldModifier="public"
-                    Canvas.Left="128" Canvas.Top="282" Width="205" Height="32"
-                    Content="Проверить обновление" Style="{DynamicResource PillButtonStyle}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+                    <TextBlock Grid.Row="2"
+                               Text="Путь к ConanSandbox.exe"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource TextMain}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Top" Height="22" Width="198"/>
 
-			<CheckBox x:Name="chkDisableIntro" x:FieldModifier="public"
-                      Canvas.Left="547" Canvas.Top="103"
-                      Style="{DynamicResource RealmCheckBoxStyle}"
-                      Content="Отключить вступительный ролик"
-                      ToolTip="Заменяет вступительный ролик Conan Exiles на черный экран при загрузке игры."/>
+                    <TextBox x:Name="txtConanExe" x:FieldModifier="public"
+                             Grid.Row="5"
+                             Visibility="Collapsed"
+                             Style="{DynamicResource TextInputStyle}" Margin="0,0,0,48" Grid.RowSpan="2"/>
 
-			<CheckBox x:Name="chkAutoSubscribe" x:FieldModifier="public"
-                      Canvas.Left="547" Canvas.Top="127"
-                      Style="{DynamicResource RealmCheckBoxStyle}"
-                      IsChecked="True"
-                      Content="Авто-подписка на моды Workshop"
-                      ToolTip="Пытается автоматически подписать на моды через Steam; при необходимости открывает страницы модов в Workshop." HorizontalAlignment="Left" VerticalAlignment="Center"/>
-		</Canvas>
-	</Grid>
+                    <Button x:Name="btnBrowseConanExe" x:FieldModifier="public"
+                            Grid.Row="2"
+                            Width="230"
+                            Content="Обзор"
+                            Style="{DynamicResource PillButtonStyle}"
+                            HorizontalAlignment="Center" Margin="0,27,0,23"/>
+
+                    <TextBlock Grid.Row="3"
+                               Text="Обновление лаунчера"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Foreground="{DynamicResource TextMain}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center" Height="22" Width="175"/>
+
+                    <Button x:Name="btnCheckUpdates" x:FieldModifier="public"
+                            Grid.Row="5"
+                            Width="230"
+                            Content="Проверить обновление"
+                            Style="{DynamicResource PillButtonStyle}"
+                            HorizontalAlignment="Center" Margin="0,0,0,50" Grid.RowSpan="2"/>
+                </Grid>
+            </Border>
+            <Rectangle Grid.Row="0" Height="2.5" Fill="#6DB2FF" Margin="58,48,58,474" Opacity="0.8" Grid.RowSpan="2"/>
+        </Grid>
+
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="58"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Rectangle Grid.Row="0" Height="2.5" Fill="#6DB2FF" Margin="58,40,58,0" Opacity="0.8"/>
+            <Border Grid.Row="1"
+                    CornerRadius="28"
+                    Background="{DynamicResource PanelFill}"
+                    BorderBrush="#5E7DB5"
+                    BorderThickness="1.2">
+                <StackPanel Margin="48,28,48,0">
+                    <CheckBox x:Name="chkDisableIntro" x:FieldModifier="public"
+                              Margin="0,0,0,14"
+                              Style="{DynamicResource RealmCheckBoxStyle}"
+                              Content="Отключить вступительный ролик"
+                              ToolTip="Заменяет вступительный ролик Conan Exiles на черный экран при загрузке игры."/>
+
+                    <CheckBox x:Name="chkAutoSubscribe" x:FieldModifier="public"
+                              Style="{DynamicResource RealmCheckBoxStyle}"
+                              IsChecked="True"
+                              Content="Авто-подписка на моды Workshop"
+                              ToolTip="Автоматически подписывает аккаунт Steam на моды из списка сервера перед запуском."/>
+                </StackPanel>
+            </Border>
+            <TextBlock Grid.Row="0"
+                FontSize="32"
+                FontWeight="Bold"
+                Foreground="#E5F0FF"
+                HorizontalAlignment="Center" Margin="0,0,0,10"><Run Text="Дополнительн"/><Run Language="ru-ru" Text="о"/></TextBlock>
+        </Grid>
+    </Grid>
 </UserControl>

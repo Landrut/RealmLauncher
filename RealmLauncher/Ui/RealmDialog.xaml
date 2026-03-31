@@ -1,0 +1,80 @@
+﻿<Window x:Class="RealmLauncher.Ui.RealmDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="REALM RolePlay Launcher"
+        Width="520"
+        Height="240"
+        MinHeight="220"
+        MaxHeight="340"
+        SizeToContent="Manual"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        FontFamily="pack://application:,,,/Assets/Fonts/#TT Norms Pro">
+    <Border CornerRadius="16" Background="#10284D" BorderBrush="#3F6299" BorderThickness="1.2">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="50"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="62"/>
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="#5B2D2A" CornerRadius="16,16,0,0">
+                <Grid MouseLeftButtonDown="TitleBar_OnMouseLeftButtonDown">
+                    <TextBlock x:Name="txtTitle"
+                               Margin="16,0,52,0"
+                               VerticalAlignment="Center"
+                               Foreground="#ECF4FF"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Text="Сообщение"/>
+                    <Button Width="34"
+                            Height="34"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Margin="0,0,10,0"
+                            Click="BtnClose_OnClick"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            Cursor="Hand">
+                        <TextBlock Text="✕" Foreground="#E9F4FF" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Button>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" Margin="20,16,20,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="48"/>
+                    <ColumnDefinition Width="14"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border x:Name="iconCircle" Width="42" Height="42" CornerRadius="21" VerticalAlignment="Top" Background="#2E66C4" BorderBrush="#88B6FF" BorderThickness="1">
+                    <TextBlock x:Name="txtIcon" Text="i" Foreground="#ECF4FF" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <TextBlock x:Name="txtMessage" Grid.Column="2" Foreground="#E6F0FF" FontSize="14" TextWrapping="Wrap" MaxWidth="410"/>
+            </Grid>
+
+            <Border Grid.Row="2" Background="#0B1F3F" CornerRadius="0,0,16,16">
+                <Grid Margin="12,10,12,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <Button x:Name="btnNo" Width="100" Height="34" Margin="0,0,10,0" Click="BtnNo_OnClick"
+                                Content="Нет" Visibility="Collapsed" Background="#2A4A7E" BorderBrush="#6BA2FF" BorderThickness="1" Foreground="#ECF4FF"/>
+                        <Button x:Name="btnYes" Width="100" Height="34" Margin="0,0,10,0" Click="BtnYes_OnClick"
+                                Content="Да" Visibility="Collapsed" Background="#3B6FD0" BorderBrush="#6BA2FF" BorderThickness="1" Foreground="#ECF4FF"/>
+                        <Button x:Name="btnOk" Width="100" Height="34" Click="BtnOk_OnClick"
+                                Content="OK" Background="#3B6FD0" BorderBrush="#6BA2FF" BorderThickness="1" Foreground="#ECF4FF"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Border>
+</Window>
