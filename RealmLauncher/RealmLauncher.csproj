@@ -143,6 +143,9 @@
     <Resource Include="Assets\Fonts\TTNormsPro-ThinItalic.ttf" />
   </ItemGroup>
   <ItemGroup>
+    <Resource Include="realm1.ico" />
+  </ItemGroup>
+  <ItemGroup>
     <Resource Include="realm22.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

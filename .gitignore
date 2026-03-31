@@ -16,3 +16,6 @@ tools/command.txt
 generate_update-manifest.ps1
 
 sign_manifest.ps1
+
+**/.vs/
+*.dtbcache.json

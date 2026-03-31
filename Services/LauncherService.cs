@@ -354,6 +354,69 @@ namespace RealmLauncher.Services
             });
         }
 
+        public void ApplyNetworkSpeedPreset(string conanExePath, bool enabled, Action<string> log)
+        {
+            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
+            {
+                throw new InvalidOperationException("Не найден ConanSandbox.exe. Укажите корректный путь.");
+            }
+
+            var gameRoot = Path.GetDirectoryName(conanExePath);
+            if (string.IsNullOrWhiteSpace(gameRoot))
+            {
+                throw new InvalidOperationException("Не удалось определить корневую папку игры.");
+            }
+
+            var baseEnginePath = Path.Combine(gameRoot, "Engine", "Config", "BaseEngine.ini");
+            if (!File.Exists(baseEnginePath))
+            {
+                log("ПРЕДУПРЕЖДЕНИЕ: BaseEngine.ini не найден, настройка скорости пропущена: " + baseEnginePath);
+                return;
+            }
+
+            var speed = enabled ? "250000" : "10000";
+            var lines = File.ReadAllLines(baseEnginePath).ToList();
+            var changed = false;
+
+            changed |= UpsertIniLine(lines, "ConfiguredInternetSpeed", speed);
+            changed |= UpsertIniLine(lines, "ConfiguredLanSpeed", speed);
+
+            if (changed)
+            {
+                File.WriteAllLines(baseEnginePath, lines);
+                log(string.Format("Скорость сети в BaseEngine.ini установлена: {0}", speed));
+            }
+            else
+            {
+                log("Скорость сети в BaseEngine.ini уже актуальна.");
+            }
+        }
+
+        private static bool UpsertIniLine(List<string> lines, string key, string value)
+        {
+            var target = key + "=" + value;
+            var regex = new Regex(@"^\s*" + Regex.Escape(key) + @"\s*=\s*.*$", RegexOptions.IgnoreCase);
+
+            for (var i = 0; i < lines.Count; i++)
+            {
+                if (!regex.IsMatch(lines[i]))
+                {
+                    continue;
+                }
+
+                if (string.Equals(lines[i].Trim(), target, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+
+                lines[i] = target;
+                return true;
+            }
+
+            lines.Add(target);
+            return true;
+        }
+
         public async Task SyncModsWithSteamworksAsync(
             string conanExePath,
             IEnumerable<ModUpdateInfo> modsToUpdate,

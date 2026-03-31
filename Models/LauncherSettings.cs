@@ -18,12 +18,14 @@ namespace RealmLauncher.Models
         public string EncryptedServerPassword { get; set; }
         public bool DisableCinematicIntro { get; set; }
         public bool AutomaticallySubscribeToWorkshopMods { get; set; }
+        public bool BoostIngameLoading { get; set; }
 
         private static readonly byte[] PasswordEntropy = Encoding.UTF8.GetBytes("RealmLauncher.ServerPassword.v1");
 
         public LauncherSettings()
         {
             AutomaticallySubscribeToWorkshopMods = true;
+            BoostIngameLoading = true;
         }
 
         public static string SettingsFilePath

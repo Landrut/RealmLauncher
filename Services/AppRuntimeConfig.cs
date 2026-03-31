@@ -19,7 +19,8 @@ namespace RealmLauncher.Services
             "github.com",
             "api.steampowered.com",
             "steamcdn-a.akamaihd.net",
-            "discord.gg"
+            "discord.gg",
+            "discord.com"
         };
 
         public static HashSet<string> BuildAllowedHosts()

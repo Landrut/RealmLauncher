@@ -6,17 +6,21 @@ using RealmLauncher.Views;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Navigation;
 using System.Windows.Threading;
 using Newtonsoft.Json.Linq;
 
@@ -41,6 +45,33 @@ namespace RealmLauncher
         {
             Timeout = TimeSpan.FromSeconds(12)
         };
+        private static readonly System.Collections.Generic.Dictionary<string, string> EmojiIconUrls = new System.Collections.Generic.Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            { "📢", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f4e2.png" },
+            { "🔥", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f525.png" },
+            { "⚒️", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2692.png" },
+            { "⚒", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2692.png" },
+            { "🛠", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f6e0.png" },
+            { "🎣", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f3a3.png" },
+            { "🌿", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f33f.png" },
+            { "🎭", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f3ad.png" },
+            { "📜", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f4dc.png" },
+            { "📚", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f4da.png" },
+            { "🛡", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f6e1.png" },
+            { "♨️", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2668.png" },
+            { "♨", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2668.png" },
+            { "🍺", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f37a.png" },
+            { "🏛", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f3db.png" },
+            { "🧭", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f9ed.png" },
+            { "⚙️", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2699.png" },
+            { "⚙", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2699.png" },
+            { "⚔️", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2694.png" },
+            { "⚔", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2694.png" },
+            { "✅", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2705.png" },
+            { "❗", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2757.png" },
+            { "ℹ️", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2139.png" },
+            { "ℹ", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2139.png" }
+        };
         private LauncherSettings _settings;
         private CancellationTokenSource _cts;
         private readonly DispatcherTimer _serverStatusTimer;
@@ -51,7 +82,7 @@ namespace RealmLauncher
 
         private TextBox txtConfigUrl => txtConfigUrlInput;
         private PasswordBox txtServerPassword => txtServerPasswordInput;
-        private TextBox txtNews => txtNewsBox;
+        private RichTextBox txtNews => rtbNewsBox;
         private TextBlock lblSteamStatusCtl => lblSteamCmdStatus;
         private System.Windows.Shapes.Ellipse serverStatusDotCtl => serverStatusDot;
         private TextBlock lblServerStatusCtl => lblServerStatusText;
@@ -65,6 +96,7 @@ namespace RealmLauncher
         private TextBox txtConanExe => SettingsPage.txtConanExe;
         private CheckBox chkDisableIntro => SettingsPage.chkDisableIntro;
         private CheckBox chkAutoSubscribe => SettingsPage.chkAutoSubscribe;
+        private CheckBox chkBoostLoading => SettingsPage.chkBoostLoading;
         private Button btnCheckUpdates => SettingsPage.btnCheckUpdates;
         private Button btnCheckSteamCmd => SettingsPage.btnCheckSteamCmd;
         private Button btnBrowseConanExe => SettingsPage.btnBrowseConanExe;
@@ -164,6 +196,17 @@ namespace RealmLauncher
                     Opacity = 0.16
                 };
             }
+
+            var assemblyVersion = typeof(MainWindow).Assembly.GetName().Version;
+            if (assemblyVersion != null)
+            {
+                txtLauncherVersion.Text = string.Format(
+                    "Launcher v{0}.{1}.{2}.{3}",
+                    assemblyVersion.Major < 0 ? 0 : assemblyVersion.Major,
+                    assemblyVersion.Minor < 0 ? 0 : assemblyVersion.Minor,
+                    assemblyVersion.Build < 0 ? 0 : assemblyVersion.Build,
+                    assemblyVersion.Revision < 0 ? 0 : assemblyVersion.Revision);
+            }
         }
 
         private static string PickExisting(string[] paths)
@@ -190,6 +233,7 @@ namespace RealmLauncher
             txtServerPassword.Password = _settings.GetServerPassword();
             chkDisableIntro.IsChecked = _settings.DisableCinematicIntro;
             chkAutoSubscribe.IsChecked = _settings.AutomaticallySubscribeToWorkshopMods;
+            chkBoostLoading.IsChecked = _settings.BoostIngameLoading;
             UpdateSteamCmdStatus();
         }
 
@@ -200,6 +244,7 @@ namespace RealmLauncher
             _settings.SetServerPassword(txtServerPassword.Password);
             _settings.DisableCinematicIntro = chkDisableIntro.IsChecked == true;
             _settings.AutomaticallySubscribeToWorkshopMods = chkAutoSubscribe.IsChecked == true;
+            _settings.BoostIngameLoading = chkBoostLoading.IsChecked == true;
             _settings.Save();
         }
 
@@ -235,7 +280,7 @@ namespace RealmLauncher
             var newsUrl = AppRuntimeConfig.NewsFeedUrl;
             if (string.IsNullOrWhiteSpace(newsUrl))
             {
-                txtNews.Text = "URL новостей не задан.\n\nДобавь ключ NewsFeedUrl в AppRuntimeConfig и укажи raw-ссылку на Gist.";
+                SetNewsPlainText("URL новостей не задан.\n\nДобавь ключ NewsFeedUrl в AppRuntimeConfig и укажи raw-ссылку на Gist.");
                 return;
             }
 
@@ -243,22 +288,20 @@ namespace RealmLauncher
             {
                 var newsUri = UrlSecurity.RequireAllowedHttpsUrl(newsUrl, _allowedHosts, "NewsFeedUrl");
                 var raw = await _httpClient.GetStringAsync(newsUri);
-                var newsText = NormalizeNewsText(raw);
-                txtNews.Text = string.IsNullOrWhiteSpace(newsText)
-                    ? "Лента новостей пуста."
-                    : newsText.Trim();
+                RenderNews(raw);
             }
             catch (Exception ex)
             {
-                txtNews.Text = "Не удалось загрузить новости.\n\n" + ex.Message;
+                SetNewsPlainText("Не удалось загрузить новости.\n\n" + ex.Message);
             }
         }
 
-        private static string NormalizeNewsText(string raw)
+        private void RenderNews(string raw)
         {
             if (string.IsNullOrWhiteSpace(raw))
             {
-                return string.Empty;
+                SetNewsPlainText("Лента новостей пуста.");
+                return;
             }
 
             var text = raw.Trim();
@@ -267,41 +310,19 @@ namespace RealmLauncher
                 try
                 {
                     var token = JToken.Parse(text);
+                    var items = token as JArray ?? token["items"] as JArray;
+                    if (items != null && items.Count > 0)
+                    {
+                        SetNewsItems(items);
+                        return;
+                    }
 
                     var directNewsToken = token["news"];
                     var directNews = directNewsToken != null ? directNewsToken.ToString() : null;
                     if (!string.IsNullOrWhiteSpace(directNews))
                     {
-                        return directNews;
-                    }
-
-                    var items = token["items"] as JArray;
-                    if (items != null && items.Count > 0)
-                    {
-                        var lines = items
-                            .Select(item =>
-                            {
-                                var titleToken = item["title"];
-                                var bodyToken = item["body"];
-                                var title = titleToken != null ? titleToken.ToString() : null;
-                                var body = bodyToken != null ? bodyToken.ToString() : null;
-                                if (!string.IsNullOrWhiteSpace(title) && !string.IsNullOrWhiteSpace(body))
-                                {
-                                    return "• " + title.Trim() + "\n" + body.Trim();
-                                }
-                                if (!string.IsNullOrWhiteSpace(title))
-                                {
-                                    return "• " + title.Trim();
-                                }
-                                return null;
-                            })
-                            .Where(x => !string.IsNullOrWhiteSpace(x))
-                            .ToList();
-
-                        if (lines.Count > 0)
-                        {
-                            return string.Join("\n\n", lines);
-                        }
+                        SetNewsPlainText(directNews);
+                        return;
                     }
                 }
                 catch
@@ -309,7 +330,223 @@ namespace RealmLauncher
                 }
             }
 
-            return text;
+            SetNewsPlainText(text);
+        }
+
+        private void SetNewsItems(JArray items)
+        {
+            var doc = CreateNewsDocument();
+            foreach (var item in items.OfType<JObject>())
+            {
+                var title = item.Value<string>("title")?.Trim();
+                var body = item.Value<string>("body")?.Trim();
+                if (string.IsNullOrWhiteSpace(body))
+                {
+                    body = item.Value<string>("description")?.Trim() ?? item.Value<string>("summary")?.Trim();
+                }
+
+                var link = item.Value<string>("url")?.Trim();
+                if (string.IsNullOrWhiteSpace(link))
+                {
+                    link = item.Value<string>("link")?.Trim();
+                }
+
+                if (TryExtractMarkdownLink(title, out var mdTitle, out var mdLink))
+                {
+                    title = mdTitle;
+                    if (string.IsNullOrWhiteSpace(link))
+                    {
+                        link = mdLink;
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(title) && string.IsNullOrWhiteSpace(body))
+                {
+                    continue;
+                }
+
+                var panel = new StackPanel();
+                if (!string.IsNullOrWhiteSpace(title))
+                {
+                    var titleBlock = new TextBlock
+                    {
+                        Foreground = (Brush)new BrushConverter().ConvertFromString("#EAF4FF"),
+                        FontSize = 15.5,
+                        FontWeight = FontWeights.SemiBold,
+                        TextWrapping = TextWrapping.Wrap
+                    };
+                    if (!string.IsNullOrWhiteSpace(link) && Uri.TryCreate(link, UriKind.Absolute, out var uri))
+                    {
+                        var hyperlink = new Hyperlink(new Run(title))
+                        {
+                            NavigateUri = uri,
+                            TextDecorations = TextDecorations.Underline,
+                            Foreground = (Brush)new BrushConverter().ConvertFromString("#7EC1FF")
+                        };
+                        hyperlink.Inlines.Clear();
+                        AddTextWithEmojiInlines(hyperlink.Inlines, title, 16);
+                        hyperlink.RequestNavigate += NewsHyperlink_RequestNavigate;
+                        titleBlock.Inlines.Add(hyperlink);
+                    }
+                    else
+                    {
+                        AddTextWithEmojiInlines(titleBlock.Inlines, title, 16);
+                    }
+                    panel.Children.Add(titleBlock);
+                }
+
+                if (!string.IsNullOrWhiteSpace(body))
+                {
+                    panel.Children.Add(new TextBlock
+                    {
+                        Margin = new Thickness(0, 6, 0, 0),
+                        Foreground = (Brush)new BrushConverter().ConvertFromString("#D2E3FF"),
+                        FontSize = 13.2,
+                        TextWrapping = TextWrapping.Wrap
+                    });
+                    AddTextWithEmojiInlines(((TextBlock)panel.Children[panel.Children.Count - 1]).Inlines, body, 14);
+                }
+                var border = new Border
+                {
+                    Background = (Brush)new BrushConverter().ConvertFromString("#5F0B2345"),
+                    BorderBrush = (Brush)new BrushConverter().ConvertFromString("#4D7CB7"),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(10, 8, 10, 9),
+                    Margin = new Thickness(0, 0, 0, 8),
+                    Child = panel
+                };
+                doc.Blocks.Add(new BlockUIContainer(border));
+            }
+
+            if (!doc.Blocks.Any())
+            {
+                SetNewsPlainText("Лента новостей пуста.");
+                return;
+            }
+
+            txtNews.Document = doc;
+        }
+
+        private void SetNewsPlainText(string text)
+        {
+            var doc = CreateNewsDocument();
+            doc.Blocks.Add(new Paragraph(new Run(text ?? string.Empty))
+            {
+                Foreground = (Brush)new BrushConverter().ConvertFromString("#DCEBFF"),
+                FontSize = 13.5,
+                Margin = new Thickness(0)
+            });
+            txtNews.Document = doc;
+        }
+
+        private static bool TryExtractMarkdownLink(string text, out string title, out string url)
+        {
+            title = null;
+            url = null;
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+
+            var m = Regex.Match(text.Trim(), @"^\[(?<t>[^\]]+)\]\((?<u>https?://[^\)]+)\)$");
+            if (!m.Success)
+            {
+                return false;
+            }
+
+            title = m.Groups["t"].Value.Trim();
+            url = m.Groups["u"].Value.Trim();
+            return true;
+        }
+
+        private FlowDocument CreateNewsDocument()
+        {
+            return new FlowDocument
+            {
+                Background = Brushes.Transparent,
+                PagePadding = new Thickness(0),
+                TextAlignment = TextAlignment.Left,
+                FontFamily = new FontFamily("TT Norms Pro, Segoe UI Emoji"),
+                LineHeight = 20
+            };
+        }
+
+        private void NewsHyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            try
+            {
+                var safeUri = UrlSecurity.RequireAllowedHttpsUrl(e.Uri.ToString(), _allowedHosts, "NewsLink");
+                Process.Start(new ProcessStartInfo(safeUri.AbsoluteUri) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                ShowError("Не удалось открыть ссылку новости:\n" + ex.Message);
+            }
+        }
+
+        private void AddTextWithEmojiInlines(InlineCollection inlines, string text, double emojiSize)
+        {
+            if (inlines == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            var buffer = new StringBuilder();
+            var enumerator = StringInfo.GetTextElementEnumerator(text);
+            while (enumerator.MoveNext())
+            {
+                var element = enumerator.GetTextElement();
+                if (TryCreateEmojiInline(element, emojiSize, out var emojiInline))
+                {
+                    if (buffer.Length > 0)
+                    {
+                        inlines.Add(new Run(buffer.ToString()));
+                        buffer.Clear();
+                    }
+
+                    inlines.Add(emojiInline);
+                    continue;
+                }
+
+                buffer.Append(element);
+            }
+
+            if (buffer.Length > 0)
+            {
+                inlines.Add(new Run(buffer.ToString()));
+            }
+        }
+
+        private static bool TryCreateEmojiInline(string element, double size, out InlineUIContainer inline)
+        {
+            inline = null;
+            if (string.IsNullOrWhiteSpace(element))
+            {
+                return false;
+            }
+
+            if (!EmojiIconUrls.TryGetValue(element, out var url))
+            {
+                return false;
+            }
+
+            var image = new Image
+            {
+                Width = size,
+                Height = size,
+                Stretch = Stretch.Uniform,
+                Margin = new Thickness(0, -2, 0, -2),
+                Source = new BitmapImage(new Uri(url, UriKind.Absolute))
+            };
+
+            inline = new InlineUIContainer(image) { BaselineAlignment = BaselineAlignment.TextBottom };
+            return true;
         }
 
         private async void BtnPlay_OnClick(object sender, RoutedEventArgs e)
@@ -347,6 +584,8 @@ namespace RealmLauncher
                 {
                     _launcherService.DisableCinematicIntro(_settings.ConanExePath, AppendLog);
                 }
+
+                _launcherService.ApplyNetworkSpeedPreset(_settings.ConanExePath, chkBoostLoading.IsChecked == true, AppendLog);
 
                 await EnsureSteamClientReadyAsync();
                 _launcherService.EnsureSteamworksInitialized(AppendLog);
@@ -494,6 +733,7 @@ namespace RealmLauncher
             txtServerPassword.IsEnabled = enabled;
             chkDisableIntro.IsEnabled = enabled;
             chkAutoSubscribe.IsEnabled = enabled;
+            chkBoostLoading.IsEnabled = enabled;
             btnCheckUpdates.IsEnabled = enabled;
             btnCheckSteamCmd.IsEnabled = enabled;
             btnBrowseConanExe.IsEnabled = enabled;
@@ -730,8 +970,42 @@ namespace RealmLauncher
                 inCurrentPercent = 100;
             }
 
-            var status = string.Format("Обновление модов: {0}/{1} ({2}% - {3})", completed, totalInt, inCurrentPercent, modLabel);
+            var cleanModName = ExtractModDisplayName(modLabel);
+            var status = string.Format("Обновление модов: {0}/{1} ({2}% - {3})", completed, totalInt, inCurrentPercent, cleanModName);
             Dispatcher.Invoke(() => SetProgress(overall, status));
+        }
+
+        private static string ExtractModDisplayName(string rawLabel)
+        {
+            if (string.IsNullOrWhiteSpace(rawLabel))
+            {
+                return "мод";
+            }
+
+            var value = rawLabel.Trim();
+
+            // "123456789/SomeMod.pak" -> "SomeMod"
+            var slash = value.LastIndexOf('/');
+            if (slash >= 0 && slash < value.Length - 1)
+            {
+                value = value.Substring(slash + 1);
+            }
+
+            // "C:\...\SomeMod.pak" -> "SomeMod"
+            try
+            {
+                value = Path.GetFileNameWithoutExtension(value);
+            }
+            catch
+            {
+            }
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return "мод";
+            }
+
+            return value;
         }
 
         private async Task CheckLauncherUpdateAsync(bool userInitiated)

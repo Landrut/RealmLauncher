@@ -177,9 +177,65 @@
             </Setter>
         </Style>
 
+        <Style x:Key="RealmScrollThumbStyle" TargetType="Thumb">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border CornerRadius="6"
+                                Margin="1"
+                                BorderBrush="#7CB8FF"
+                                BorderThickness="1">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#66B7FF" Offset="0"/>
+                                    <GradientStop Color="#3F83DA" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.Effect>
+                                <DropShadowEffect Color="#4AAFFF" BlurRadius="8" ShadowDepth="0" Opacity="0.55"/>
+                            </Border.Effect>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style TargetType="ScrollBar">
-            <Setter Property="Width" Value="11"/>
-            <Setter Property="Background" Value="#37132857"/>
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Background" Value="#2A1B3E69"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid SnapsToDevicePixels="True" Background="Transparent">
+                            <Border CornerRadius="7"
+                                    BorderBrush="#365B93"
+                                    BorderThickness="1"
+                                    Background="#311A355F"
+                                    Margin="0"
+                                    IsHitTestVisible="False"/>
+                            <Track x:Name="PART_Track"
+                                   IsDirectionReversed="True"
+                                   Focusable="False">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.LineUpCommand"
+                                                  Background="Transparent"
+                                                  BorderThickness="0"
+                                                  Opacity="0"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource RealmScrollThumbStyle}"/>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.LineDownCommand"
+                                                  Background="Transparent"
+                                                  BorderThickness="0"
+                                                  Opacity="0"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="RealmCheckBoxStyle" TargetType="CheckBox">
@@ -189,15 +245,46 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
                         <StackPanel Orientation="Horizontal">
-                            <Border x:Name="Mark" Width="22" Height="22" CornerRadius="7" Background="#D7DDE9" BorderBrush="#031531" BorderThickness="1" Margin="0,0,8,0">
-                                <Path x:Name="Tick" Data="M4,11 L9,16 L18,6" Stroke="#ECF4FF" StrokeThickness="2.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
+                            <Border x:Name="Mark"
+                                    Width="22"
+                                    Height="22"
+                                    CornerRadius="7"
+                                    BorderBrush="#6FA9FF"
+                                    BorderThickness="1"
+                                    Margin="0,0,8,0"
+                                    Background="#1D3562">
+                                <Border.Effect>
+                                    <DropShadowEffect Color="#3E86E5" BlurRadius="8" ShadowDepth="0" Opacity="0.35"/>
+                                </Border.Effect>
+                                <Grid>
+                                    <Border x:Name="MarkGlow" Margin="1.2" CornerRadius="5.5" Opacity="0.0">
+                                        <Border.Background>
+                                            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                                <GradientStop Color="#82D2FF" Offset="0"/>
+                                                <GradientStop Color="#2A7CE0" Offset="1"/>
+                                            </LinearGradientBrush>
+                                        </Border.Background>
+                                    </Border>
+                                    <Path x:Name="Tick"
+                                          Data="M4,11 L9,16 L18,6"
+                                          Stroke="#ECF4FF"
+                                          StrokeThickness="2.4"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Visibility="Collapsed"/>
+                                </Grid>
                             </Border>
                             <ContentPresenter VerticalAlignment="Center"/>
                         </StackPanel>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Mark" Property="Background" Value="#4C8BE9"/>
+                                <Setter TargetName="Mark" Property="Background" Value="#2A67C2"/>
+                                <Setter TargetName="MarkGlow" Property="Opacity" Value="0.9"/>
                                 <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Mark" Property="BorderBrush" Value="#9ED0FF"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -236,6 +323,20 @@
 
             <Grid Height="78" VerticalAlignment="Top" MouseLeftButtonDown="HeaderBar_OnMouseLeftButtonDown">
                 <Image x:Name="imgLogo" Width="152" Height="56" Margin="22,12,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                <Border Margin="184,30,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Top"
+                        CornerRadius="9"
+                        Padding="8,2"
+                        Background="#3A132B59"
+                        BorderBrush="#5E7DB5"
+                        BorderThickness="1" Width="117">
+                    <TextBlock x:Name="txtLauncherVersion"
+                               Foreground="#BFD7FF"
+                               FontSize="12"
+                               FontWeight="SemiBold"
+                               Margin="0,0,-4,0"><Run Text="Launcher v0.0.0"/><Run Text=".0"/></TextBlock>
+                </Border>
 
                 <Button x:Name="btnOpenSettings"
                         Width="184"
@@ -290,7 +391,17 @@
                         </StackPanel>
                         <Border Grid.Row="1" Margin="4,10,4,0" CornerRadius="28" Background="{DynamicResource PanelFill}" BorderBrush="#5E7DB5" BorderThickness="1.2">
                             <Border Margin="9" CornerRadius="22" BorderBrush="#2B3D61" BorderThickness="1" Background="#6B081B39">
-                                <TextBox x:Name="txtNewsBox" Margin="9" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Style="{DynamicResource RoundedLogTextBoxStyle}" Text="Загрузка новостей..."/>
+                                <RichTextBox x:Name="rtbNewsBox"
+                                             Margin="9"
+                                             IsReadOnly="True"
+                                             IsDocumentEnabled="True"
+                                             VerticalScrollBarVisibility="Auto"
+                                             BorderThickness="0"
+                                             Background="Transparent"
+                                             Foreground="{StaticResource TextMain}"
+                                             FontSize="13.5"
+                                             Padding="10,8"
+                                             FontFamily="TT Norms Pro, Segoe UI Emoji"/>
                             </Border>
                         </Border>
                     </Grid>
