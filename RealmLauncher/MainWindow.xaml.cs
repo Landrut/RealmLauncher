@@ -566,7 +566,7 @@ namespace RealmLauncher
                 }
                 _cts = new CancellationTokenSource();
 
-                SetStatus("Скачиваю конфиг сервера...");
+                SetStatus("Загрузка конфига сервера...");
                 var config = await _launcherService.DownloadConfigAsync(_settings.ConfigUrl, _allowedHosts, _cts.Token);
                 SetProgress(StageConfigLoaded, "Конфиг сервера загружен.");
                 AppendLog(string.Format("Сервер: {0}", config.Name));
@@ -623,12 +623,12 @@ namespace RealmLauncher
                     SetProgress(StageModsEnd, "Обновление модов не требуется.");
                 }
 
-                SetStatus("Обновляю modlist.txt...");
+                SetStatus("Обновление modlist.txt...");
                 var modListPath = _launcherService.WriteModListFile(_settings.ConanExePath, config.Mods, AppendLog);
                 AppendLog("modlist.txt обновлён: " + modListPath);
                 SetProgress(StageModlistDone, "modlist.txt обновлён.");
 
-                SetStatus("Запускаю подключение к серверу...");
+                SetStatus("Подключение к серверу...");
                 _launcherService.LaunchServerConnection(_settings.ConanExePath, config.Ip);
                 AppendLog("Игра запущена с авто-подключением.");
                 SetProgress(StageLaunched, "Готово. Игра запускается.");
@@ -828,7 +828,7 @@ namespace RealmLauncher
                 return;
             }
 
-            AppendLog("Steam не запущен. Пытаюсь запустить Steam...");
+            AppendLog("Steam не запущен. Выполняется запуск Steam...");
             try
             {
                 Process.Start(new ProcessStartInfo
@@ -1079,7 +1079,7 @@ namespace RealmLauncher
 
         private async Task DownloadAndApplyLauncherUpdateAsync(LauncherUpdateManifest manifest)
         {
-            StartProgress("Скачиваю обновление лаунчера...");
+            StartProgress("Скачивание обновления лаунчера...");
             SetProgress(0.05, "Подготовка к скачиванию обновления...");
 
             var packagePath = await _updateService.DownloadPackageAsync(
@@ -1099,7 +1099,7 @@ namespace RealmLauncher
                 },
                 CancellationToken.None);
 
-            SetProgress(0.95, "Устанавливаю обновление...");
+            SetProgress(0.95, "Установка обновления...");
             _updateService.InstallAndRestart(packagePath);
             SetProgress(1.0, "Обновление установлено. Перезапуск...");
             Application.Current.Shutdown();

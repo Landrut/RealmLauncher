@@ -2,10 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="REALM RolePlay Launcher"
-        Width="520"
-        Height="240"
-        MinHeight="220"
-        MaxHeight="340"
+        Width="560"
+        Height="360"
+        MinHeight="260"
+        MaxHeight="560"
         SizeToContent="Manual"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
@@ -55,7 +55,16 @@
                     <TextBlock x:Name="txtIcon" Text="i" Foreground="#ECF4FF" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
 
-                <TextBlock x:Name="txtMessage" Grid.Column="2" Foreground="#E6F0FF" FontSize="14" TextWrapping="Wrap" MaxWidth="410"/>
+                <ScrollViewer Grid.Column="2"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Margin="0,2,0,0">
+                    <TextBlock x:Name="txtMessage"
+                               Foreground="#E6F0FF"
+                               FontSize="14"
+                               TextWrapping="Wrap"
+                               MaxWidth="438"/>
+                </ScrollViewer>
             </Grid>
 
             <Border Grid.Row="2" Background="#0B1F3F" CornerRadius="0,0,16,16">

@@ -42,20 +42,25 @@ namespace RealmLauncher.Ui
 
             ApplyDialogType(type);
             ApplyButtons(buttons);
-            ApplyCompactSize(message);
+            ApplyCompactSize(message, buttons);
 
             KeyDown += RealmDialog_KeyDown;
         }
 
-        private void ApplyCompactSize(string message)
+        private void ApplyCompactSize(string message, RealmDialogButtons buttons)
         {
             var text = message ?? string.Empty;
             var lineCount = text.Split(new[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries).Length;
             if (lineCount <= 0) lineCount = 1;
 
-            var estimated = 220 + (lineCount * 10);
-            if (estimated < 220) estimated = 220;
-            if (estimated > 340) estimated = 340;
+            var estimated = 260 + (lineCount * 11);
+            if (buttons == RealmDialogButtons.YesNo)
+            {
+                estimated += 24;
+            }
+
+            if (estimated < 260) estimated = 260;
+            if (estimated > 560) estimated = 560;
 
             Height = estimated;
         }

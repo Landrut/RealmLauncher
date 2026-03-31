@@ -447,15 +447,15 @@
             <Grid x:Name="FooterBar" Height="54" VerticalAlignment="Bottom" Margin="18,0,18,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="120"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="170"/>
                     <ColumnDefinition Width="16"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="170"/>
                     <ColumnDefinition Width="16"/>
-                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="110"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="250"/>
+                    <ColumnDefinition Width="220"/>
                     <ColumnDefinition Width="16"/>
-                    <ColumnDefinition Width="280"/>
+                    <ColumnDefinition Width="230"/>
                 </Grid.ColumnDefinitions>
 
                 <Button x:Name="btnDiscord" Grid.Column="0" Width="98" Height="34" HorizontalAlignment="Left" VerticalAlignment="Center" Content="Discord" Style="{StaticResource PillButtonStyle}" Margin="17,0,0,0"/>
@@ -469,19 +469,16 @@
                 <TextBlock x:Name="lblPlayersCount" Grid.Column="5" VerticalAlignment="Center" Foreground="#BBD2F9" FontSize="15" Text="Игроки: --/--"/>
                 <TextBlock x:Name="lblStatus"
                            Grid.Column="7"
-                           Width="242"
-                           Margin="0,0,8,0"
-                           VerticalAlignment="Center"
-                           HorizontalAlignment="Right"
+                           Width="384"
+                           VerticalAlignment="Top"
+                           HorizontalAlignment="Left"
                            TextAlignment="Right"
-                           Foreground="{DynamicResource TextMain}"
-                           FontSize="16"
-                           FontWeight="Bold"
+                           Foreground="{DynamicResource InputStroke}"
                            Text="Ожидание..."
-                           TextTrimming="CharacterEllipsis"
-                           ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                           TextTrimming="WordEllipsis"
+                           ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Grid.ColumnSpan="3" Margin="0,35,0,0" FontWeight="Bold" FontSize="11"/>
                 <ProgressBar x:Name="progressMods"
-                             Grid.Column="9"
+                             Grid.Column="7"
                              Height="10"
                              Minimum="0"
                              Maximum="1000"
@@ -489,7 +486,7 @@
                              Foreground="#4AAFFF"
                              Background="#2A406A"
                              Style="{DynamicResource RoundedProgressBarStyle}"
-                             VerticalAlignment="Center" Margin="0,0,66,0"/>
+                             VerticalAlignment="Center" Grid.ColumnSpan="3" Margin="0,0,73,0"/>
             </Grid>
         </Grid>
     </Border>

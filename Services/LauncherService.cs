@@ -102,7 +102,7 @@ namespace RealmLauncher.Services
 
             Directory.CreateDirectory(steamCmdDirectory);
 
-            log("Скачиваю SteamCMD...");
+            log("Скачивание SteamCMD...");
             using (var response = await HttpClient.GetAsync(SteamCmdZipUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
@@ -114,7 +114,7 @@ namespace RealmLauncher.Services
                 }
             }
 
-            log("Распаковываю SteamCMD...");
+            log("Распаковка SteamCMD...");
             ExtractZipOverwrite(zipPath, steamCmdDirectory);
 
             if (File.Exists(zipPath))
@@ -453,7 +453,7 @@ namespace RealmLauncher.Services
 
                 var update = updates[i];
                 var modLabel = string.Format("{0}/{1}", update.ModId, update.PakName);
-                log(string.Format("Обновляю мод {0}/{1}: {2}", i + 1, updates.Count, modLabel));
+                log(string.Format("Обновление мода {0}/{1}: {2}", i + 1, updates.Count, modLabel));
                 progress?.Invoke(processed, updates.Count, modLabel);
                 var pakPath = Path.Combine(workshopContentRoot, update.ModId, update.PakName);
                 var hadBefore = File.Exists(pakPath);
