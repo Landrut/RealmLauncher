@@ -8,17 +8,17 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$DownloadUrl,
 
-    [string]$OutPath = ".\\update-manifest.json",
+    [string]$OutPath = ".\update-manifest.json",
     [string]$Changelog = ""
 )
 
-if (!(Test-Path $ZipPath)) {
-    throw "ZIP не найден: $ZipPath"
+if (!(Test-Path -LiteralPath $ZipPath)) {
+    throw "ZIP not found: $ZipPath"
 }
 
-$file = Get-Item $ZipPath
+$file = Get-Item -LiteralPath $ZipPath
 $size = $file.Length
-$sha = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+$sha = (Get-FileHash -LiteralPath $ZipPath -Algorithm SHA256).Hash.ToLowerInvariant()
 
 $manifest = [ordered]@{
     version = $Version
@@ -26,10 +26,12 @@ $manifest = [ordered]@{
     sizeBytes = $size
     sha256 = $sha
     changelog = $Changelog
+    signatureAlgorithm = "RSA-SHA256"
+    signatureBase64 = ""
 }
 
 $json = $manifest | ConvertTo-Json -Depth 5
-Set-Content -Path $OutPath -Value $json -Encoding UTF8
+Set-Content -LiteralPath $OutPath -Value $json -Encoding UTF8
 
 Write-Host "Done:"
 Write-Host "Version : $Version"

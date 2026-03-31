@@ -7,5 +7,7 @@ namespace RealmLauncher.Models
         public long? SizeBytes { get; set; }
         public string Sha256 { get; set; }
         public string Changelog { get; set; }
+        public string SignatureBase64 { get; set; }
+        public string SignatureAlgorithm { get; set; }
     }
 }

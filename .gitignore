@@ -10,3 +10,7 @@ tools/command.txt
 /_steamworks_pkg_20
 /_steamworks_pkg_2024
 /_facepunch_pkg
+/keys
+*.pfx
+*.snk
+generate_update-manifest.ps1

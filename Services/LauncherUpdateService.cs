@@ -61,6 +61,7 @@ namespace RealmLauncher.Services
                 }
 
                 UrlSecurity.RequireAllowedHttpsUrl(manifest.DownloadUrl, allowedHosts, "URL пакета обновления");
+                ValidateManifestSignature(manifest);
 
                 var latestVersion = ParseVersionLoose(manifest.Version);
                 return new LauncherUpdateCheckResult
@@ -70,6 +71,80 @@ namespace RealmLauncher.Services
                     LatestVersion = latestVersion,
                     Manifest = manifest
                 };
+            }
+        }
+
+        public static string BuildManifestSigningPayload(LauncherUpdateManifest manifest)
+        {
+            if (manifest == null)
+            {
+                throw new InvalidOperationException("Manifest is null.");
+            }
+
+            // Canonical payload. Keep this format stable to avoid signature mismatches.
+            var version = (manifest.Version ?? string.Empty).Trim();
+            var url = (manifest.DownloadUrl ?? string.Empty).Trim();
+            var size = manifest.SizeBytes.HasValue ? manifest.SizeBytes.Value.ToString() : string.Empty;
+            var sha = (manifest.Sha256 ?? string.Empty).Trim().ToLowerInvariant();
+            var changelog = (manifest.Changelog ?? string.Empty).Replace("\r\n", "\n");
+
+            return string.Join("\n", new[] { version, url, size, sha, changelog });
+        }
+
+        private static void ValidateManifestSignature(LauncherUpdateManifest manifest)
+        {
+            if (!AppRuntimeConfig.RequireSignedUpdateManifest)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(AppRuntimeConfig.UpdateManifestSignaturePublicKeyXml) ||
+                AppRuntimeConfig.UpdateManifestSignaturePublicKeyXml.Contains("REPLACE_WITH_YOUR_MODULUS"))
+            {
+                throw new InvalidOperationException(
+                    "В AppRuntimeConfig не задан публичный ключ подписи update-манифеста.");
+            }
+
+            if (string.IsNullOrWhiteSpace(manifest.SignatureBase64))
+            {
+                throw new InvalidOperationException("В манифесте отсутствует поле signatureBase64.");
+            }
+
+            var algorithm = string.IsNullOrWhiteSpace(manifest.SignatureAlgorithm)
+                ? "RSA-SHA256"
+                : manifest.SignatureAlgorithm.Trim();
+
+            if (!string.Equals(algorithm, "RSA-SHA256", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Неподдерживаемый алгоритм подписи манифеста: " + algorithm);
+            }
+
+            byte[] signatureBytes;
+            try
+            {
+                signatureBytes = Convert.FromBase64String(manifest.SignatureBase64.Trim());
+            }
+            catch
+            {
+                throw new InvalidOperationException("Поле signatureBase64 содержит некорректный Base64.");
+            }
+
+            var payload = BuildManifestSigningPayload(manifest);
+            var payloadBytes = Encoding.UTF8.GetBytes(payload);
+
+            using (var rsa = new RSACryptoServiceProvider())
+            {
+                rsa.PersistKeyInCsp = false;
+                rsa.FromXmlString(AppRuntimeConfig.UpdateManifestSignaturePublicKeyXml);
+                using (var sha256 = SHA256.Create())
+                {
+                    var valid = rsa.VerifyData(payloadBytes, sha256, signatureBytes);
+                    if (!valid)
+                    {
+                        throw new InvalidOperationException(
+                            "Цифровая подпись update-манифеста недействительна. Обновление заблокировано.");
+                    }
+                }
             }
         }
 
