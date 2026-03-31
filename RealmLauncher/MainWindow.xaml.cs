@@ -75,10 +75,16 @@ namespace RealmLauncher
         private LauncherSettings _settings;
         private CancellationTokenSource _cts;
         private readonly DispatcherTimer _serverStatusTimer;
+        private readonly DispatcherTimer _modSyncAnimationTimer;
         private bool _isRefreshingServerStatus;
         private string _serverStatusText = "проверка...";
         private string _serverPlayersText = "Игроки: --/--";
         private Brush _serverStatusBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4C542"));
+        private bool _isModSyncStatusActive;
+        private int _modSyncDone;
+        private int _modSyncTotal;
+        private string _modSyncCurrentModName = "мод";
+        private int _modSyncDotPhase;
 
         private TextBox txtConfigUrl => txtConfigUrlInput;
         private PasswordBox txtServerPassword => txtServerPasswordInput;
@@ -110,6 +116,8 @@ namespace RealmLauncher
             ShowMainPage();
             _serverStatusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
             _serverStatusTimer.Tick += async (_, __) => await RefreshServerStatusAsync();
+            _modSyncAnimationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(260) };
+            _modSyncAnimationTimer.Tick += (_, __) => RefreshModSyncAnimatedStatus();
             SizeChanged += MainWindow_SizeChanged;
             Loaded += MainWindow_OnLoadedSetClip;
             Loaded += MainWindow_Loaded;
@@ -964,15 +972,46 @@ namespace RealmLauncher
 
             var totalInt = (int)Math.Round(totalSafe);
             var completed = (int)Math.Floor(Math.Max(0d, Math.Min(totalSafe, current)));
-            var inCurrentPercent = (int)Math.Round((Math.Max(0d, current - completed)) * 100d);
-            if (inCurrentPercent > 100)
+            var allDone = current >= totalSafe - 0.0001d;
+            var cleanModName = ExtractModDisplayName(modLabel);
+
+            Dispatcher.Invoke(() =>
             {
-                inCurrentPercent = 100;
+                _modSyncDone = completed;
+                _modSyncTotal = totalInt;
+                _modSyncCurrentModName = cleanModName;
+                SetProgress(overall, null);
+
+                if (allDone)
+                {
+                    _isModSyncStatusActive = false;
+                    _modSyncAnimationTimer.Stop();
+                    SetStatus(string.Format("Обновление модов: {0}/{1} ({2} - завершено)", _modSyncDone, _modSyncTotal, _modSyncCurrentModName));
+                }
+                else
+                {
+                    if (!_isModSyncStatusActive)
+                    {
+                        _isModSyncStatusActive = true;
+                        _modSyncDotPhase = 0;
+                        _modSyncAnimationTimer.Start();
+                    }
+
+                    RefreshModSyncAnimatedStatus();
+                }
+            });
+        }
+
+        private void RefreshModSyncAnimatedStatus()
+        {
+            if (!_isModSyncStatusActive)
+            {
+                return;
             }
 
-            var cleanModName = ExtractModDisplayName(modLabel);
-            var status = string.Format("Обновление модов: {0}/{1} ({2}% - {3})", completed, totalInt, inCurrentPercent, cleanModName);
-            Dispatcher.Invoke(() => SetProgress(overall, status));
+            _modSyncDotPhase = (_modSyncDotPhase % 5) + 1;
+            var dots = new string('.', _modSyncDotPhase);
+            SetStatus(string.Format("Обновление модов: {0}/{1} ({2}{3})", _modSyncDone, _modSyncTotal, _modSyncCurrentModName, dots));
         }
 
         private static string ExtractModDisplayName(string rawLabel)
