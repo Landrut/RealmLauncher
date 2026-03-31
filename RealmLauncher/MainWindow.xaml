@@ -208,7 +208,25 @@
 
     <Border CornerRadius="22" Background="#152D56" SnapsToDevicePixels="True">
         <Grid ClipToBounds="True">
-            <Rectangle Fill="#152D56"/>
+            <Rectangle>
+                <Rectangle.Fill>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#102A55" Offset="0"/>
+                        <GradientStop Color="#1B3D73" Offset="0.45"/>
+                        <GradientStop Color="#0F2C5A" Offset="1"/>
+                    </LinearGradientBrush>
+                </Rectangle.Fill>
+            </Rectangle>
+            <Rectangle>
+                <Rectangle.Fill>
+                    <RadialGradientBrush Center="0.82,0.18" GradientOrigin="0.82,0.18" RadiusX="0.72" RadiusY="0.72">
+                        <GradientStop Color="#3B7EDB" Offset="0"/>
+                        <GradientStop Color="#1E4E93" Offset="0.42"/>
+                        <GradientStop Color="#001229" Offset="1"/>
+                    </RadialGradientBrush>
+                </Rectangle.Fill>
+                <Rectangle.Opacity>0.34</Rectangle.Opacity>
+            </Rectangle>
             <Rectangle Fill="#66040C23"/>
             <Border BorderBrush="#436496" BorderThickness="1" CornerRadius="22"/>
 
