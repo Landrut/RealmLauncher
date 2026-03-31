@@ -19,3 +19,5 @@ sign_manifest.ps1
 
 **/.vs/
 *.dtbcache.json
+/release/out
+/release
