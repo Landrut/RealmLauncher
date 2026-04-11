@@ -4,19 +4,19 @@
              StartupUri="MainWindow.xaml">
     <Application.Resources>
         <FontFamily x:Key="AppFont">pack://application:,,,/Assets/Fonts/#TT Norms Pro</FontFamily>
-        <SolidColorBrush x:Key="TextMain" Color="#DBE5F5"/>
-        <SolidColorBrush x:Key="TextMuted" Color="#9FB4D9"/>
-        <SolidColorBrush x:Key="PanelFill" Color="#2F4D8D" Opacity="0.55"/>
-        <SolidColorBrush x:Key="InputBg" Color="#0D1A34"/>
-        <SolidColorBrush x:Key="InputStroke" Color="#2B426D"/>
+        <SolidColorBrush x:Key="TextMain" Color="#F3E6CC"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#BDAA86"/>
+        <SolidColorBrush x:Key="PanelFill" Color="#7A20160F" Opacity="0.9"/>
+        <SolidColorBrush x:Key="InputBg" Color="#8A140F0C"/>
+        <SolidColorBrush x:Key="InputStroke" Color="#8E6B3E"/>
 
         <Style x:Key="PillButtonStyle" TargetType="Button">
             <Setter Property="Height" Value="30"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="#F7EBD5"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Background" Value="#4A87EA"/>
-            <Setter Property="BorderBrush" Value="#031531"/>
+            <Setter Property="Background" Value="#6B3E1B"/>
+            <Setter Property="BorderBrush" Value="#DAA15A"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -31,7 +31,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Root" Property="Background" Value="#5A95F8"/>
+                                <Setter TargetName="Root" Property="Background" Value="#8A5626"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Root" Property="Opacity" Value="0.5"/>
@@ -95,14 +95,14 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="CheckBox">
                         <StackPanel Orientation="Horizontal">
-                            <Border x:Name="Mark" Width="18" Height="18" CornerRadius="6" Background="#D9D9D9" BorderBrush="#020617" BorderThickness="1" Margin="0,0,8,0">
-                                <Path x:Name="Tick" Data="M3,9 L7,13 L15,5" Stroke="#DBE5F5" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
+                            <Border x:Name="Mark" Width="18" Height="18" CornerRadius="6" Background="#2F2417" BorderBrush="#8E6B3E" BorderThickness="1" Margin="0,0,8,0">
+                                <Path x:Name="Tick" Data="M3,9 L7,13 L15,5" Stroke="#F7EBD5" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
                             </Border>
                             <ContentPresenter VerticalAlignment="Center"/>
                         </StackPanel>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Mark" Property="Background" Value="#4A87EA"/>
+                                <Setter TargetName="Mark" Property="Background" Value="#8A5625"/>
                                 <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -155,8 +155,8 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Thumb">
-                        <Border Background="#4A87EA"
-                                BorderBrush="#2F5FAE"
+                        <Border Background="#8A5625"
+                                BorderBrush="#C48A45"
                                 BorderThickness="1"
                                 CornerRadius="6" />
                     </ControlTemplate>
@@ -166,7 +166,7 @@
 
         <Style x:Key="LauncherScrollBarStyle" TargetType="ScrollBar">
             <Setter Property="Width" Value="10" />
-            <Setter Property="Background" Value="#1B2F5C" />
+            <Setter Property="Background" Value="#2A1C12" />
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ScrollBar">

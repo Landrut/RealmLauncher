@@ -22,18 +22,69 @@
         <SolidColorBrush x:Key="PanelFill" Color="#6A132B59"/>
         <SolidColorBrush x:Key="InputBg" Color="#6F091733"/>
         <SolidColorBrush x:Key="InputStroke" Color="#5E76B6"/>
+        <SolidColorBrush x:Key="WindowShellBg" Color="#152D56"/>
+        <SolidColorBrush x:Key="WindowOuterBorderBrush" Color="#436496"/>
+        <SolidColorBrush x:Key="HeaderFillBrush" Color="#50183364"/>
+        <SolidColorBrush x:Key="HeaderSeparatorBrush" Color="#020E27"/>
+        <SolidColorBrush x:Key="FooterFillBrush" Color="#7A030D26"/>
+        <SolidColorBrush x:Key="VersionBgBrush" Color="#3A132B59"/>
+        <SolidColorBrush x:Key="VersionBorderBrush" Color="#5E7DB5"/>
+        <SolidColorBrush x:Key="VersionTextBrush" Color="#BFD7FF"/>
+        <SolidColorBrush x:Key="SectionTitleBrush" Color="#E5F0FF"/>
+        <SolidColorBrush x:Key="SectionLineBrush" Color="#6DB2FF"/>
+        <SolidColorBrush x:Key="SectionLineSoftBrush" Color="#8FBFF9"/>
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="#5E7DB5"/>
+        <SolidColorBrush x:Key="InnerPanelBorderBrush" Color="#2B3D61"/>
+        <SolidColorBrush x:Key="InnerPanelFillBrush" Color="#6B081B39"/>
+        <SolidColorBrush x:Key="WelcomePrimaryBrush" Color="#ECF4FF"/>
+        <SolidColorBrush x:Key="WelcomeSecondaryBrush" Color="#ECF4FF"/>
+        <SolidColorBrush x:Key="FooterDividerBrush" Color="#7096D4"/>
+        <SolidColorBrush x:Key="ServerTextBrush" Color="#D7E8FF"/>
+        <SolidColorBrush x:Key="PlayersTextBrush" Color="#BBD2F9"/>
+        <SolidColorBrush x:Key="StatusDotStrokeBrush" Color="#0A1328"/>
+        <SolidColorBrush x:Key="ProgressForegroundBrush" Color="#4AAFFF"/>
+        <SolidColorBrush x:Key="ProgressBackgroundBrush" Color="#2A406A"/>
+        <SolidColorBrush x:Key="ButtonTextBrush" Color="#EAF5FF"/>
+        <SolidColorBrush x:Key="ButtonBgBrush" Color="#3E72CF"/>
+        <SolidColorBrush x:Key="ButtonBorderBrush" Color="#6EA8FF"/>
+        <SolidColorBrush x:Key="ButtonBgHoverBrush" Color="#4A84EA"/>
+        <SolidColorBrush x:Key="ButtonBorderHoverBrush" Color="#9BC8FF"/>
+        <SolidColorBrush x:Key="ButtonBgPressedBrush" Color="#325FAF"/>
+        <SolidColorBrush x:Key="ButtonSheenBrush" Color="#78C9FF"/>
+        <SolidColorBrush x:Key="CloseButtonBgBrush" Color="#3D78D8"/>
+        <SolidColorBrush x:Key="CheckBorderBrush" Color="#6FA9FF"/>
+        <SolidColorBrush x:Key="CheckBackgroundBrush" Color="#1D3562"/>
+        <SolidColorBrush x:Key="CheckCheckedBgBrush" Color="#2A67C2"/>
+        <SolidColorBrush x:Key="CheckHoverBorderBrush" Color="#9ED0FF"/>
+        <SolidColorBrush x:Key="CheckTickBrush" Color="#ECF4FF"/>
+        <SolidColorBrush x:Key="ComboPopupBgBrush" Color="#132745"/>
+        <SolidColorBrush x:Key="ComboItemHoverBgBrush" Color="#2A4776"/>
+        <SolidColorBrush x:Key="ComboItemSelectedBgBrush" Color="#365E98"/>
+        <SolidColorBrush x:Key="ComboFocusBorderBrush" Color="#5E76B6"/>
+        <SolidColorBrush x:Key="ComboArrowBrush" Color="#9FB5D8"/>
+        <SolidColorBrush x:Key="OverlayTintBrush" Color="#66040C23"/>
+        <Color x:Key="ButtonGlowColor">#55A8FF</Color>
+        <Color x:Key="CheckGlowColor">#3E86E5</Color>
+        <Color x:Key="CheckGlowStartColor">#82D2FF</Color>
+        <Color x:Key="CheckGlowEndColor">#2A7CE0</Color>
+        <Color x:Key="BgGradTop">#102A55</Color>
+        <Color x:Key="BgGradMid">#1B3D73</Color>
+        <Color x:Key="BgGradBottom">#0F2C5A</Color>
+        <Color x:Key="BgGlowTop">#3B7EDB</Color>
+        <Color x:Key="BgGlowMid">#1E4E93</Color>
+        <Color x:Key="BgGlowBottom">#001229</Color>
 
         <DropShadowEffect x:Key="SoftGlowBlue" Color="#3B93FF" BlurRadius="16" ShadowDepth="0" Opacity="0.45"/>
         <DropShadowEffect x:Key="SoftGlowDark" Color="#020617" BlurRadius="12" ShadowDepth="2" Opacity="0.75"/>
 
         <Style x:Key="PillButtonStyle" TargetType="Button">
             <Setter Property="Height" Value="34"/>
-            <Setter Property="Foreground" Value="#EAF5FF"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonTextBrush}"/>
             <Setter Property="FontSize" Value="15"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="BorderBrush" Value="#6EA8FF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Background" Value="#3E72CF"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBgBrush}"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -41,16 +92,12 @@
                         <Grid>
                             <Border x:Name="Root"
                                     CornerRadius="18"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
                                     RenderTransformOrigin="0.5,0.5">
-                                <Border.Background>
-                                    <SolidColorBrush x:Name="RootBackgroundBrush" Color="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=Background.(SolidColorBrush.Color), FallbackValue=#3E72CF}"/>
-                                </Border.Background>
-                                <Border.BorderBrush>
-                                    <SolidColorBrush x:Name="RootBorderBrush" Color="{Binding RelativeSource={RelativeSource TemplatedParent}, Path=BorderBrush.(SolidColorBrush.Color), FallbackValue=#6EA8FF}"/>
-                                </Border.BorderBrush>
                                 <Border.Effect>
-                                    <DropShadowEffect x:Name="RootGlow" Color="#55A8FF" BlurRadius="14" ShadowDepth="0" Opacity="0.35"/>
+                                    <DropShadowEffect x:Name="RootGlow" Color="{DynamicResource ButtonGlowColor}" BlurRadius="14" ShadowDepth="0" Opacity="0.35"/>
                                 </Border.Effect>
                                 <Border.RenderTransform>
                                     <ScaleTransform x:Name="RootScale" ScaleX="1" ScaleY="1"/>
@@ -62,23 +109,17 @@
                                     CornerRadius="16"
                                     BorderThickness="1"
                                     Opacity="0"
-                                    BorderBrush="#78C9FF"/>
+                                    BorderBrush="{DynamicResource ButtonSheenBrush}"/>
 
                             <ContentPresenter x:Name="ContentHost" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource ButtonBgHoverBrush}"/>
+                                <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource ButtonBorderHoverBrush}"/>
                                 <Trigger.EnterActions>
                                     <BeginStoryboard>
                                         <Storyboard>
-                                            <ColorAnimation Storyboard.TargetName="RootBackgroundBrush"
-                                                            Storyboard.TargetProperty="Color"
-                                                            To="#4A84EA"
-                                                            Duration="0:0:0.14"/>
-                                            <ColorAnimation Storyboard.TargetName="RootBorderBrush"
-                                                            Storyboard.TargetProperty="Color"
-                                                            To="#9BC8FF"
-                                                            Duration="0:0:0.14"/>
                                             <DoubleAnimation Storyboard.TargetName="RootGlow"
                                                              Storyboard.TargetProperty="Opacity"
                                                              To="0.68"
@@ -101,14 +142,6 @@
                                 <Trigger.ExitActions>
                                     <BeginStoryboard>
                                         <Storyboard>
-                                            <ColorAnimation Storyboard.TargetName="RootBackgroundBrush"
-                                                            Storyboard.TargetProperty="Color"
-                                                            To="#3E72CF"
-                                                            Duration="0:0:0.14"/>
-                                            <ColorAnimation Storyboard.TargetName="RootBorderBrush"
-                                                            Storyboard.TargetProperty="Color"
-                                                            To="#6EA8FF"
-                                                            Duration="0:0:0.14"/>
                                             <DoubleAnimation Storyboard.TargetName="RootGlow"
                                                              Storyboard.TargetProperty="Opacity"
                                                              To="0.35"
@@ -131,6 +164,7 @@
                             </Trigger>
 
                             <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Root" Property="Background" Value="{DynamicResource ButtonBgPressedBrush}"/>
                                 <Trigger.EnterActions>
                                     <BeginStoryboard>
                                         <Storyboard>
@@ -139,12 +173,8 @@
                                                              To="0.985"
                                                              Duration="0:0:0.06"/>
                                             <DoubleAnimation Storyboard.TargetName="RootScale"
-                                                             Storyboard.TargetProperty="ScaleY"
-                                                             To="0.985"
-                                                             Duration="0:0:0.06"/>
-                                            <ColorAnimation Storyboard.TargetName="RootBackgroundBrush"
-                                                            Storyboard.TargetProperty="Color"
-                                                            To="#325FAF"
+                                                            Storyboard.TargetProperty="ScaleY"
+                                                            To="0.985"
                                                             Duration="0:0:0.06"/>
                                             <DoubleAnimation Storyboard.TargetName="RootGlow"
                                                              Storyboard.TargetProperty="Opacity"
@@ -188,16 +218,16 @@
             <Setter Property="Height" Value="40"/>
             <Setter Property="FontSize" Value="22"/>
             <Setter Property="FontWeight" Value="Regular"/>
-            <Setter Property="Background" Value="#3D78D8"/>
+            <Setter Property="Background" Value="{DynamicResource CloseButtonBgBrush}"/>
         </Style>
 
         <Style x:Key="TextInputStyle" TargetType="TextBox">
             <Setter Property="Height" Value="42"/>
             <Setter Property="Padding" Value="14,0"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
-            <Setter Property="Background" Value="{StaticResource InputBg}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource InputStroke}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+            <Setter Property="Background" Value="{DynamicResource InputBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputStroke}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Template">
@@ -220,9 +250,9 @@
             <Setter Property="Padding" Value="14,0"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
-            <Setter Property="Background" Value="{StaticResource InputBg}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource InputStroke}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+            <Setter Property="Background" Value="{DynamicResource InputBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputStroke}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Template">
@@ -241,9 +271,9 @@
         </Style>
 
         <Style x:Key="RoundedLogTextBoxStyle" TargetType="TextBox">
-            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
-            <Setter Property="Background" Value="#84071835"/>
-            <Setter Property="BorderBrush" Value="#658FD2"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+            <Setter Property="Background" Value="{DynamicResource InnerPanelFillBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="16,14"/>
             <Setter Property="FontSize" Value="13.2"/>
@@ -255,7 +285,7 @@
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}">
                             <Grid>
-                                <Border Margin="1" CornerRadius="17" BorderBrush="#2A3D66" BorderThickness="1" Opacity="0.65"/>
+                                <Border Margin="1" CornerRadius="17" BorderBrush="{DynamicResource InnerPanelBorderBrush}" BorderThickness="1" Opacity="0.65"/>
                                 <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalScrollBarVisibility="Auto"/>
                             </Grid>
                         </Border>
@@ -266,12 +296,12 @@
 
         <Style x:Key="RoundedProgressBarStyle" TargetType="ProgressBar">
             <Setter Property="Height" Value="11"/>
-            <Setter Property="Foreground" Value="#4DB1FF"/>
-            <Setter Property="Background" Value="#44162A52"/>
+            <Setter Property="Foreground" Value="{DynamicResource ProgressForegroundBrush}"/>
+            <Setter Property="Background" Value="{DynamicResource ProgressBackgroundBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
-                        <Border CornerRadius="7" Background="{TemplateBinding Background}" BorderBrush="#2A3F6A" BorderThickness="1">
+                        <Border CornerRadius="7" Background="{TemplateBinding Background}" BorderBrush="{DynamicResource InputStroke}" BorderThickness="1">
                             <Grid x:Name="PART_Track" ClipToBounds="True">
                                 <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="7" Background="{TemplateBinding Foreground}"/>
                             </Grid>
@@ -287,16 +317,13 @@
                     <ControlTemplate TargetType="Thumb">
                         <Border CornerRadius="6"
                                 Margin="1"
-                                BorderBrush="#7CB8FF"
+                                BorderBrush="{DynamicResource SectionLineBrush}"
                                 BorderThickness="1">
                             <Border.Background>
-                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                    <GradientStop Color="#66B7FF" Offset="0"/>
-                                    <GradientStop Color="#3F83DA" Offset="1"/>
-                                </LinearGradientBrush>
+                                <DynamicResource ResourceKey="ProgressForegroundBrush"/>
                             </Border.Background>
                             <Border.Effect>
-                                <DropShadowEffect Color="#4AAFFF" BlurRadius="8" ShadowDepth="0" Opacity="0.55"/>
+                                <DropShadowEffect Color="{DynamicResource ButtonGlowColor}" BlurRadius="8" ShadowDepth="0" Opacity="0.55"/>
                             </Border.Effect>
                         </Border>
                     </ControlTemplate>
@@ -306,15 +333,15 @@
 
         <Style TargetType="ScrollBar">
             <Setter Property="Width" Value="12"/>
-            <Setter Property="Background" Value="#2A1B3E69"/>
+            <Setter Property="Background" Value="{DynamicResource ProgressBackgroundBrush}"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ScrollBar">
                         <Grid SnapsToDevicePixels="True" Background="Transparent">
                             <Border CornerRadius="7"
-                                    BorderBrush="#365B93"
+                                    BorderBrush="{DynamicResource InputStroke}"
                                     BorderThickness="1"
-                                    Background="#311A355F"
+                                    Background="{DynamicResource InputBg}"
                                     Margin="0"
                                     IsHitTestVisible="False"/>
                             <Track x:Name="PART_Track"
@@ -343,7 +370,7 @@
         </Style>
 
         <Style x:Key="RealmCheckBoxStyle" TargetType="CheckBox">
-            <Setter Property="Foreground" Value="{StaticResource TextMain}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -353,25 +380,25 @@
                                     Width="22"
                                     Height="22"
                                     CornerRadius="7"
-                                    BorderBrush="#6FA9FF"
+                                    BorderBrush="{DynamicResource CheckBorderBrush}"
                                     BorderThickness="1"
                                     Margin="0,0,8,0"
-                                    Background="#1D3562">
+                                    Background="{DynamicResource CheckBackgroundBrush}">
                                 <Border.Effect>
-                                    <DropShadowEffect Color="#3E86E5" BlurRadius="8" ShadowDepth="0" Opacity="0.35"/>
+                                    <DropShadowEffect Color="{DynamicResource CheckGlowColor}" BlurRadius="8" ShadowDepth="0" Opacity="0.35"/>
                                 </Border.Effect>
                                 <Grid>
                                     <Border x:Name="MarkGlow" Margin="1.2" CornerRadius="5.5" Opacity="0.0">
                                         <Border.Background>
                                             <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                                                <GradientStop Color="#82D2FF" Offset="0"/>
-                                                <GradientStop Color="#2A7CE0" Offset="1"/>
+                                                <GradientStop Color="{DynamicResource CheckGlowStartColor}" Offset="0"/>
+                                                <GradientStop Color="{DynamicResource CheckGlowEndColor}" Offset="1"/>
                                             </LinearGradientBrush>
                                         </Border.Background>
                                     </Border>
                                     <Path x:Name="Tick"
                                           Data="M4,11 L9,16 L18,6"
-                                          Stroke="#ECF4FF"
+                                          Stroke="{DynamicResource CheckTickBrush}"
                                           StrokeThickness="2.4"
                                           StrokeStartLineCap="Round"
                                           StrokeEndLineCap="Round"
@@ -383,12 +410,117 @@
                         </StackPanel>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Mark" Property="Background" Value="#2A67C2"/>
+                                <Setter TargetName="Mark" Property="Background" Value="{DynamicResource CheckCheckedBgBrush}"/>
                                 <Setter TargetName="MarkGlow" Property="Opacity" Value="0.9"/>
                                 <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Mark" Property="BorderBrush" Value="#9ED0FF"/>
+                                <Setter TargetName="Mark" Property="BorderBrush" Value="{DynamicResource CheckHoverBorderBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RealmComboBoxItemStyle" TargetType="ComboBoxItem">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="MinHeight" Value="34"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border x:Name="ItemRoot"
+                                Background="{TemplateBinding Background}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="ItemRoot" Property="Background" Value="{DynamicResource ComboItemHoverBgBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemRoot" Property="Background" Value="{DynamicResource ComboItemSelectedBgBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="RealmComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMain}"/>
+            <Setter Property="Background" Value="{DynamicResource InputBg}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputStroke}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,2"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="ItemContainerStyle" Value="{DynamicResource RealmComboBoxItemStyle}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton"
+                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                          Focusable="False"
+                                          ClickMode="Press"
+                                          Background="Transparent"
+                                          FocusVisualStyle="{x:Null}"
+                                          BorderThickness="0">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <ContentPresenter/>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                                <Border x:Name="ComboBorder"
+                                        CornerRadius="8"
+                                        Background="{TemplateBinding Background}"
+                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                        BorderThickness="{TemplateBinding BorderThickness}">
+                                    <Grid>
+                                        <ContentPresenter Margin="10,0,28,0"
+                                                          VerticalAlignment="Center"
+                                                          HorizontalAlignment="Left"
+                                                          TextElement.Foreground="{TemplateBinding Foreground}"
+                                                          Content="{TemplateBinding SelectionBoxItem}"
+                                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
+                                        <Path HorizontalAlignment="Right"
+                                              Margin="0,0,10,0"
+                                              VerticalAlignment="Center"
+                                              Fill="{DynamicResource ComboArrowBrush}"
+                                              Data="M 0 0 L 4 4 L 8 0 Z"/>
+                                    </Grid>
+                                </Border>
+                            </ToggleButton>
+                            <Popup x:Name="Popup"
+                                   Placement="Bottom"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   PopupAnimation="Fade">
+                                <Border Margin="0,4,0,0"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"
+                                        CornerRadius="8"
+                                        Background="{DynamicResource ComboPopupBgBrush}"
+                                        BorderBrush="{DynamicResource InputStroke}"
+                                        BorderThickness="1">
+                                    <ScrollViewer MaxHeight="220">
+                                        <StackPanel IsItemsHost="True"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="ComboBorder" Property="BorderBrush" Value="{DynamicResource ComboFocusBorderBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.55"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -397,46 +529,49 @@
         </Style>
     </Window.Resources>
 
-    <Border CornerRadius="22" Background="#152D56" SnapsToDevicePixels="True">
+    <Border CornerRadius="22" Background="{DynamicResource WindowShellBg}" SnapsToDevicePixels="True">
         <Grid ClipToBounds="True">
             <Rectangle>
                 <Rectangle.Fill>
                     <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#102A55" Offset="0"/>
-                        <GradientStop Color="#1B3D73" Offset="0.45"/>
-                        <GradientStop Color="#0F2C5A" Offset="1"/>
+                        <GradientStop Color="{DynamicResource BgGradTop}" Offset="0"/>
+                        <GradientStop Color="{DynamicResource BgGradMid}" Offset="0.45"/>
+                        <GradientStop Color="{DynamicResource BgGradBottom}" Offset="1"/>
                     </LinearGradientBrush>
                 </Rectangle.Fill>
             </Rectangle>
             <Rectangle>
                 <Rectangle.Fill>
                     <RadialGradientBrush Center="0.82,0.18" GradientOrigin="0.82,0.18" RadiusX="0.72" RadiusY="0.72">
-                        <GradientStop Color="#3B7EDB" Offset="0"/>
-                        <GradientStop Color="#1E4E93" Offset="0.42"/>
-                        <GradientStop Color="#001229" Offset="1"/>
+                        <GradientStop Color="{DynamicResource BgGlowTop}" Offset="0"/>
+                        <GradientStop Color="{DynamicResource BgGlowMid}" Offset="0.42"/>
+                        <GradientStop Color="{DynamicResource BgGlowBottom}" Offset="1"/>
                     </RadialGradientBrush>
                 </Rectangle.Fill>
-                <Rectangle.Opacity>0.34</Rectangle.Opacity>
+                <Rectangle.Opacity>0.4</Rectangle.Opacity>
             </Rectangle>
-            <Rectangle Fill="#66040C23"/>
-            <Border BorderBrush="#436496" BorderThickness="1" CornerRadius="22"/>
+            <Rectangle Fill="{DynamicResource OverlayTintBrush}"/>
+            <Border BorderBrush="{DynamicResource WindowOuterBorderBrush}" BorderThickness="1" CornerRadius="22"/>
 
-            <Rectangle Height="78" VerticalAlignment="Top" Fill="#50183364"/>
-            <Rectangle Height="2" VerticalAlignment="Top" Margin="0,76,0,0" Fill="#020E27"/>
-            <Rectangle Height="54" VerticalAlignment="Bottom" Fill="#7A030D26"/>
+            <Rectangle Height="78" VerticalAlignment="Top" Fill="{DynamicResource HeaderFillBrush}"/>
+            <Rectangle Height="2" VerticalAlignment="Top" Margin="0,76,0,0" Fill="{DynamicResource HeaderSeparatorBrush}"/>
+            <Rectangle Height="54" VerticalAlignment="Bottom" Fill="{DynamicResource FooterFillBrush}"/>
 
-            <Grid Height="78" VerticalAlignment="Top" MouseLeftButtonDown="HeaderBar_OnMouseLeftButtonDown">
+            <Grid Height="78"
+                  VerticalAlignment="Top"
+                  Background="Transparent"
+                  MouseLeftButtonDown="HeaderBar_OnMouseLeftButtonDown">
                 <Image x:Name="imgLogo" Width="152" Height="56" Margin="22,12,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"/>
                 <Border Margin="184,30,0,0"
                         HorizontalAlignment="Left"
                         VerticalAlignment="Top"
                         CornerRadius="9"
                         Padding="8,2"
-                        Background="#3A132B59"
-                        BorderBrush="#5E7DB5"
+                        Background="{DynamicResource VersionBgBrush}"
+                        BorderBrush="{DynamicResource VersionBorderBrush}"
                         BorderThickness="1" Width="117">
                     <TextBlock x:Name="txtLauncherVersion"
-                               Foreground="#BFD7FF"
+                               Foreground="{DynamicResource VersionTextBrush}"
                                FontSize="12"
                                FontWeight="SemiBold"
                                Margin="0,0,-4,0"><Run Text="Launcher v0.0.0"/><Run Text=".0"/></TextBlock>
@@ -448,10 +583,10 @@
                         HorizontalAlignment="Right"
                         VerticalAlignment="Top"
                         Content="Настройки"
-                        Style="{StaticResource PillButtonStyle}"
+                        Style="{DynamicResource PillButtonStyle}"
                         Click="BtnOpenSettings_OnClick">
                     <Button.Effect>
-                        <DropShadowEffect Color="#2E8EFF" BlurRadius="18" ShadowDepth="4" Direction="270" Opacity="0.55"/>
+                        <DropShadowEffect Color="{DynamicResource ButtonGlowColor}" BlurRadius="18" ShadowDepth="4" Direction="270" Opacity="0.55"/>
                     </Button.Effect>
                 </Button>
 
@@ -461,7 +596,7 @@
                         HorizontalAlignment="Right"
                         VerticalAlignment="Top"
                         Content="Главное меню"
-                        Style="{StaticResource PillButtonStyle}"
+                        Style="{DynamicResource PillButtonStyle}"
                         Visibility="Collapsed"
                         Click="BtnBackToMain_OnClick"/>
 
@@ -471,7 +606,7 @@
                         VerticalAlignment="Center"
                         Content="✕"
                         ToolTip="Закрыть"
-                        Style="{StaticResource CloseButtonStyle}"
+                        Style="{DynamicResource CloseButtonStyle}"
                         Click="BtnCloseApp_OnClick" Height="35" Width="35"/>
             </Grid>
 
@@ -489,12 +624,12 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Row="0">
-                            <TextBlock Text="Новости обновлений" FontSize="32" FontWeight="Bold" Foreground="#E5F0FF" HorizontalAlignment="Center"/>
-                            <Rectangle Height="2.5" Fill="#6DB2FF" Margin="22,3,22,0" Opacity="0.8"/>
-                            <Rectangle Height="1" Fill="#8FBFF9" Margin="10,6,10,0" Opacity="0.55"/>
+                            <TextBlock Text="Новости обновлений" FontSize="32" FontWeight="Bold" Foreground="{DynamicResource SectionTitleBrush}" HorizontalAlignment="Center"/>
+                            <Rectangle Height="2.5" Fill="{DynamicResource SectionLineBrush}" Margin="22,3,22,0" Opacity="0.85"/>
+                            <Rectangle Height="1" Fill="{DynamicResource SectionLineSoftBrush}" Margin="10,6,10,0" Opacity="0.45"/>
                         </StackPanel>
-                        <Border Grid.Row="1" Margin="4,10,4,0" CornerRadius="28" Background="{DynamicResource PanelFill}" BorderBrush="#5E7DB5" BorderThickness="1.2">
-                            <Border Margin="9" CornerRadius="22" BorderBrush="#2B3D61" BorderThickness="1" Background="#6B081B39">
+                        <Border Grid.Row="1" Margin="4,10,4,0" CornerRadius="28" Background="{DynamicResource PanelFill}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1.2">
+                            <Border Margin="9" CornerRadius="22" BorderBrush="{DynamicResource InnerPanelBorderBrush}" BorderThickness="1" Background="{DynamicResource InnerPanelFillBrush}">
                                 <RichTextBox x:Name="rtbNewsBox"
                                              Margin="9"
                                              IsReadOnly="True"
@@ -502,7 +637,7 @@
                                              VerticalScrollBarVisibility="Auto"
                                              BorderThickness="0"
                                              Background="Transparent"
-                                             Foreground="{StaticResource TextMain}"
+                                             Foreground="{DynamicResource TextMain}"
                                              FontSize="13.5"
                                              Padding="10,8"
                                              FontFamily="TT Norms Pro, Segoe UI Emoji"/>
@@ -517,8 +652,8 @@
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
                         <StackPanel HorizontalAlignment="Center" Width="482" Height="43" VerticalAlignment="Center">
-                            <TextBlock Text="Добро пожаловать в лаунчер REALM RP." FontSize="16" FontWeight="SemiBold" Foreground="#ECF4FF" HorizontalAlignment="Center"/>
-                            <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="#ECF4FF" Width="395" HorizontalAlignment="Center"><Run Text="Легкий, а главное - быстрый доступ к "/><Run Language="ru-ru" Text="н"/><Run Text="ашему серверу."/></TextBlock>
+                            <TextBlock Text="Добро пожаловать в лаунчер REALM RP." FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource WelcomePrimaryBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource WelcomeSecondaryBrush}" Width="395" HorizontalAlignment="Center"><Run Text="Легкий, а главное - быстрый доступ к "/><Run Language="ru-ru" Text="н"/><Run Text="ашему серверу."/></TextBlock>
                         </StackPanel>
                         <Grid Margin="0,84,0,10" Grid.RowSpan="2">
                             <Grid.ColumnDefinitions>
@@ -527,17 +662,17 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Grid.ColumnSpan="3" Margin="4,0,246,0">
-                                <TextBlock Text="Пароль сервера" FontSize="16" FontWeight="Bold" Foreground="#ECF4FF" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Пароль сервера" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource WelcomePrimaryBrush}" HorizontalAlignment="Center"/>
                                 <PasswordBox x:Name="txtServerPasswordInput" Style="{DynamicResource PasswordInputStyle}" Height="36" Width="213"/>
                             </StackPanel>
-                            <Button x:Name="btnPlayMain" Grid.Column="2" Height="NaN" Margin="37,20,10,20" Content="Запуск игры" Style="{StaticResource PillButtonStyle}" Foreground="#FFDDEFFF" BorderBrush="#FF75A8FF">
+                            <Button x:Name="btnPlayMain" Grid.Column="2" Height="NaN" Margin="37,20,10,20" Content="Запуск игры" Style="{DynamicResource PillButtonStyle}">
                                 <Button.Effect>
-                                    <DropShadowEffect Color="#2E8EFF" BlurRadius="18" ShadowDepth="4" Direction="270" Opacity="0.55"/>
+                                    <DropShadowEffect Color="{DynamicResource ButtonGlowColor}" BlurRadius="18" ShadowDepth="4" Direction="270" Opacity="0.55"/>
                                 </Button.Effect>
                             </Button>
                         </Grid>
-                        <Border Grid.Row="2" CornerRadius="28" Background="{DynamicResource PanelFill}" BorderBrush="#5E7DB5" BorderThickness="1.2">
-                            <Border Margin="9" CornerRadius="22" BorderBrush="#2B3D61" BorderThickness="1" Background="#6B081B39">
+                        <Border Grid.Row="2" CornerRadius="28" Background="{DynamicResource PanelFill}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1.2">
+                            <Border Margin="9" CornerRadius="22" BorderBrush="{DynamicResource InnerPanelBorderBrush}" BorderThickness="1" Background="{DynamicResource InnerPanelFillBrush}">
                                 <TextBox x:Name="txtLogBox" Margin="10" IsReadOnly="True" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap" Style="{DynamicResource RoundedLogTextBoxStyle}"/>
                             </Border>
                         </Border>
@@ -562,15 +697,15 @@
                     <ColumnDefinition Width="230"/>
                 </Grid.ColumnDefinitions>
 
-                <Button x:Name="btnDiscord" Grid.Column="0" Width="98" Height="34" HorizontalAlignment="Left" VerticalAlignment="Center" Content="Discord" Style="{StaticResource PillButtonStyle}" Margin="17,0,0,0"/>
+                <Button x:Name="btnDiscord" Grid.Column="0" Width="98" Height="34" HorizontalAlignment="Left" VerticalAlignment="Center" Content="Discord" Style="{DynamicResource PillButtonStyle}" Margin="17,0,0,0"/>
                 <TextBlock x:Name="lblSteamCmdStatus" Grid.Column="1" VerticalAlignment="Center" Foreground="{DynamicResource TextMuted}" FontSize="15" Text="Steam: неизвестно"/>
-                <TextBlock Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#7096D4" FontSize="16" Text="|"/>
+                <TextBlock Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource FooterDividerBrush}" FontSize="16" Text="|"/>
                 <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Ellipse x:Name="serverStatusDot" Width="11" Height="11" Fill="#F4C542" Stroke="#0A1328" StrokeThickness="1"/>
-                    <TextBlock x:Name="lblServerStatusText" Margin="6,0,0,0" Foreground="#D7E8FF" FontSize="15" Text="Сервер: проверка..."/>
+                    <Ellipse x:Name="serverStatusDot" Width="11" Height="11" Fill="#F4C542" Stroke="{DynamicResource StatusDotStrokeBrush}" StrokeThickness="1"/>
+                    <TextBlock x:Name="lblServerStatusText" Margin="6,0,0,0" Foreground="{DynamicResource ServerTextBrush}" FontSize="15" Text="Сервер: проверка..."/>
                 </StackPanel>
-                <TextBlock Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="#7096D4" FontSize="16" Text="|"/>
-                <TextBlock x:Name="lblPlayersCount" Grid.Column="5" VerticalAlignment="Center" Foreground="#BBD2F9" FontSize="15" Text="Игроки: --/--"/>
+                <TextBlock Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="{DynamicResource FooterDividerBrush}" FontSize="16" Text="|"/>
+                <TextBlock x:Name="lblPlayersCount" Grid.Column="5" VerticalAlignment="Center" Foreground="{DynamicResource PlayersTextBrush}" FontSize="15" Text="Игроки: --/--"/>
                 <TextBlock x:Name="lblStatus"
                            Grid.Column="7"
                            Width="384"
@@ -587,8 +722,8 @@
                              Minimum="0"
                              Maximum="1000"
                              Value="0"
-                             Foreground="#4AAFFF"
-                             Background="#2A406A"
+                             Foreground="{DynamicResource ProgressForegroundBrush}"
+                             Background="{DynamicResource ProgressBackgroundBrush}"
                              Style="{DynamicResource RoundedProgressBarStyle}"
                              VerticalAlignment="Center" Grid.ColumnSpan="3" Margin="0,0,73,0"/>
             </Grid>

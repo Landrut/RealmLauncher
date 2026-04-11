@@ -24,14 +24,14 @@
                        Text="Настройки"
                        FontSize="32"
                        FontWeight="Bold"
-                       Foreground="#E5F0FF"
+                       Foreground="{DynamicResource SectionTitleBrush}"
                        HorizontalAlignment="Center"/>
 
             <Border Grid.Row="1"
                     Margin="4,10,4,0"
                     CornerRadius="28"
                     Background="{DynamicResource PanelFill}"
-                    BorderBrush="#5E7DB5"
+                    BorderBrush="{DynamicResource PanelBorderBrush}"
                     BorderThickness="1.2">
                 <Grid Margin="24,20,24,20">
                     <Grid.RowDefinitions>
@@ -42,6 +42,8 @@
                         <RowDefinition Height="4"/>
                         <RowDefinition Height="22"/>
                         <RowDefinition Height="58"/>
+                        <RowDefinition Height="22"/>
+                        <RowDefinition Height="38"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="1"
@@ -92,9 +94,28 @@
                             Content="Проверить обновление"
                             Style="{DynamicResource PillButtonStyle}"
                             HorizontalAlignment="Center" Margin="0,0,0,50" Grid.RowSpan="2"/>
+
+                    <TextBlock Grid.Row="7"
+                               Text="Тема лаунчера"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextMuted}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Bottom"/>
+
+                    <ComboBox x:Name="cmbTheme" x:FieldModifier="public"
+                              Grid.Row="8"
+                              Width="330"
+                              Height="38"
+                              Style="{DynamicResource RealmComboBoxStyle}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Top">
+                        <ComboBoxItem Content="Синяя" Tag="Blue"/>
+                        <ComboBoxItem Content="Бронзово-золотая" Tag="Bronze"/>
+                    </ComboBox>
                 </Grid>
             </Border>
-            <Rectangle Grid.Row="0" Height="2.5" Fill="#6DB2FF" Margin="58,48,58,474" Opacity="0.8" Grid.RowSpan="2"/>
+            <Rectangle Grid.Row="0" Height="2.5" Fill="{DynamicResource SectionLineBrush}" Margin="58,48,58,474" Opacity="0.85" Grid.RowSpan="2"/>
         </Grid>
 
         <Grid Grid.Column="2">
@@ -102,48 +123,48 @@
                 <RowDefinition Height="58"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <Rectangle Grid.Row="0" Height="2.5" Fill="#6DB2FF" Margin="58,40,58,0" Opacity="0.8"/>
+            <Rectangle Grid.Row="0" Height="2.5" Fill="{DynamicResource SectionLineBrush}" Margin="58,40,58,0" Opacity="0.85"/>
             <Border Grid.Row="1"
                     CornerRadius="28"
                     Background="{DynamicResource PanelFill}"
-                    BorderBrush="#5E7DB5"
+                    BorderBrush="{DynamicResource PanelBorderBrush}"
                     BorderThickness="1.2">
                 <StackPanel Margin="36,24,36,20">
-                    <Border CornerRadius="12" Background="#3A17325F" BorderBrush="#4D7CB7" BorderThickness="1" Padding="12,10" Margin="0,0,0,10">
+                    <Border CornerRadius="12" Background="{DynamicResource InnerPanelFillBrush}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" Padding="12,10" Margin="0,0,0,10">
                         <StackPanel>
                             <CheckBox x:Name="chkDisableIntro" x:FieldModifier="public"
                                       Style="{DynamicResource RealmCheckBoxStyle}"
                                       Content="Отключить вступительный ролик"/>
                             <TextBlock Margin="30,6,0,0"
-                                       Foreground="#AFC5E8"
+                                       Foreground="{DynamicResource TextMuted}"
                                        FontSize="12.5"
                                        TextWrapping="Wrap"
                                        Text="Заменяет вступительный ролик Conan Exiles на черный экран при загрузке игры."/>
                         </StackPanel>
                     </Border>
 
-                    <Border CornerRadius="12" Background="#3A17325F" BorderBrush="#4D7CB7" BorderThickness="1" Padding="12,10" Margin="0,0,0,10">
+                    <Border CornerRadius="12" Background="{DynamicResource InnerPanelFillBrush}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" Padding="12,10" Margin="0,0,0,10">
                         <StackPanel>
                             <CheckBox x:Name="chkAutoSubscribe" x:FieldModifier="public"
                                       Style="{DynamicResource RealmCheckBoxStyle}"
                                       IsChecked="True"
                                       Content="Авто-подписка на моды Workshop"/>
                             <TextBlock Margin="30,6,0,0"
-                                       Foreground="#AFC5E8"
+                                       Foreground="{DynamicResource TextMuted}"
                                        FontSize="12.5"
                                        TextWrapping="Wrap"
                                        Text="Автоматически подписывает аккаунт Steam на моды из списка сервера перед запуском."/>
                         </StackPanel>
                     </Border>
 
-                    <Border CornerRadius="12" Background="#3A17325F" BorderBrush="#4D7CB7" BorderThickness="1" Padding="12,10">
+                    <Border CornerRadius="12" Background="{DynamicResource InnerPanelFillBrush}" BorderBrush="{DynamicResource PanelBorderBrush}" BorderThickness="1" Padding="12,10">
                         <StackPanel>
                             <CheckBox x:Name="chkBoostLoading" x:FieldModifier="public"
                                       Style="{DynamicResource RealmCheckBoxStyle}"
                                       IsChecked="True"
                                       Content="Ускорить внутриигровые загрузки"/>
                             <TextBlock Margin="30,6,0,0"
-                                       Foreground="#AFC5E8"
+                                       Foreground="{DynamicResource TextMuted}"
                                        FontSize="12.5"
                                        TextWrapping="Wrap"
                                        ><Run Text="Меняет ConfiguredInternetSpeed и ConfiguredLanSpeed в BaseEngine.ini: 250000 (вкл) / 10000 (выкл)."/><Run Text=" Что существенно ускоряет прогрузку локаций"/><Run Language="ru-ru" Text="."/></TextBlock>
@@ -154,7 +175,7 @@
             <TextBlock Grid.Row="0"
                 FontSize="32"
                 FontWeight="Bold"
-                Foreground="#E5F0FF"
+                Foreground="{DynamicResource SectionTitleBrush}"
                 HorizontalAlignment="Center" Margin="0,0,0,10"><Run Text="Дополнительн"/><Run Language="ru-ru" Text="о"/></TextBlock>
         </Grid>
     </Grid>

@@ -331,6 +331,63 @@ namespace RealmLauncher.Services
             return modListPath;
         }
 
+        public ModListSnapshot CaptureModListSnapshot(string conanExePath)
+        {
+            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
+            {
+                throw new InvalidOperationException("Не найден ConanSandbox.exe. Укажите корректный путь.");
+            }
+
+            var sandboxDirectory = ResolveConanSandboxDirectory(conanExePath);
+            var modsDirectory = Path.Combine(sandboxDirectory, "Mods");
+            var modListPath = Path.Combine(modsDirectory, "modlist.txt");
+
+            if (!File.Exists(modListPath))
+            {
+                return new ModListSnapshot
+                {
+                    Exists = false,
+                    Bytes = Array.Empty<byte>()
+                };
+            }
+
+            return new ModListSnapshot
+            {
+                Exists = true,
+                Bytes = File.ReadAllBytes(modListPath)
+            };
+        }
+
+        public void RestoreModListSnapshot(string conanExePath, ModListSnapshot snapshot, Action<string> log)
+        {
+            if (snapshot == null)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
+            {
+                return;
+            }
+
+            var sandboxDirectory = ResolveConanSandboxDirectory(conanExePath);
+            var modsDirectory = Path.Combine(sandboxDirectory, "Mods");
+            var modListPath = Path.Combine(modsDirectory, "modlist.txt");
+
+            Directory.CreateDirectory(modsDirectory);
+
+            if (snapshot.Exists)
+            {
+                File.WriteAllBytes(modListPath, snapshot.Bytes ?? Array.Empty<byte>());
+                log("Исходный modlist.txt восстановлен.");
+            }
+            else if (File.Exists(modListPath))
+            {
+                File.Delete(modListPath);
+                log("Временный modlist.txt удалён (до запуска лаунчера файла не было).");
+            }
+        }
+
         public void LaunchServerConnection(string conanExePath, string serverIp)
         {
             if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
@@ -1300,6 +1357,12 @@ namespace RealmLauncher.Services
         {
             public string ModId { get; set; }
             public string PakName { get; set; }
+        }
+
+        public sealed class ModListSnapshot
+        {
+            public bool Exists { get; set; }
+            public byte[] Bytes { get; set; }
         }
     }
 }

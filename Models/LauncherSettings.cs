@@ -19,6 +19,7 @@ namespace RealmLauncher.Models
         public bool DisableCinematicIntro { get; set; }
         public bool AutomaticallySubscribeToWorkshopMods { get; set; }
         public bool BoostIngameLoading { get; set; }
+        public string UiTheme { get; set; }
 
         private static readonly byte[] PasswordEntropy = Encoding.UTF8.GetBytes("RealmLauncher.ServerPassword.v1");
 
@@ -26,6 +27,7 @@ namespace RealmLauncher.Models
         {
             AutomaticallySubscribeToWorkshopMods = true;
             BoostIngameLoading = true;
+            UiTheme = "Blue";
         }
 
         public static string SettingsFilePath

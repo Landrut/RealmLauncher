@@ -77,9 +77,11 @@ namespace RealmLauncher
         private readonly DispatcherTimer _serverStatusTimer;
         private readonly DispatcherTimer _modSyncAnimationTimer;
         private bool _isRefreshingServerStatus;
+        private bool _isApplyingTheme;
         private string _serverStatusText = "проверка...";
         private string _serverPlayersText = "Игроки: --/--";
         private Brush _serverStatusBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4C542"));
+        private ThemePalette _themePalette;
         private bool _isModSyncStatusActive;
         private int _modSyncDone;
         private int _modSyncTotal;
@@ -106,6 +108,7 @@ namespace RealmLauncher
         private Button btnCheckUpdates => SettingsPage.btnCheckUpdates;
         private Button btnCheckSteamCmd => SettingsPage.btnCheckSteamCmd;
         private Button btnBrowseConanExe => SettingsPage.btnBrowseConanExe;
+        private ComboBox cmbTheme => SettingsPage.cmbTheme;
 
         public MainWindow()
         {
@@ -145,6 +148,7 @@ namespace RealmLauncher
             SettingsPage.btnCheckSteamCmd.Click += BtnCheckSteamCmd_OnClick;
             SettingsPage.btnCheckUpdates.Click += BtnCheckUpdates_OnClick;
             SettingsPage.btnBrowseConanExe.Click += BtnBrowseConanExe_OnClick;
+            SettingsPage.cmbTheme.SelectionChanged += CmbTheme_OnSelectionChanged;
         }
 
         private void BtnOpenDiscord_OnClick(object sender, RoutedEventArgs e)
@@ -242,6 +246,8 @@ namespace RealmLauncher
             chkDisableIntro.IsChecked = _settings.DisableCinematicIntro;
             chkAutoSubscribe.IsChecked = _settings.AutomaticallySubscribeToWorkshopMods;
             chkBoostLoading.IsChecked = _settings.BoostIngameLoading;
+            SelectThemeInUi(string.IsNullOrWhiteSpace(_settings.UiTheme) ? "Blue" : _settings.UiTheme);
+            ApplyThemePalette(GetSelectedThemeKey());
             UpdateSteamCmdStatus();
         }
 
@@ -253,6 +259,7 @@ namespace RealmLauncher
             _settings.DisableCinematicIntro = chkDisableIntro.IsChecked == true;
             _settings.AutomaticallySubscribeToWorkshopMods = chkAutoSubscribe.IsChecked == true;
             _settings.BoostIngameLoading = chkBoostLoading.IsChecked == true;
+            _settings.UiTheme = GetSelectedThemeKey();
             _settings.Save();
         }
 
@@ -281,6 +288,274 @@ namespace RealmLauncher
         {
             SaveSettings();
             ShowMainPage();
+        }
+
+        private void CmbTheme_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isApplyingTheme || _settings == null)
+            {
+                return;
+            }
+
+            ApplyThemePalette(GetSelectedThemeKey());
+            SaveSettings();
+            _ = LoadNewsAsync();
+        }
+
+        private void SelectThemeInUi(string themeKey)
+        {
+            if (cmbTheme == null)
+            {
+                return;
+            }
+
+            var key = NormalizeThemeKey(themeKey);
+            _isApplyingTheme = true;
+            try
+            {
+                for (var i = 0; i < cmbTheme.Items.Count; i++)
+                {
+                    if (cmbTheme.Items[i] is ComboBoxItem item &&
+                        string.Equals(item.Tag as string, key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        cmbTheme.SelectedIndex = i;
+                        return;
+                    }
+                }
+
+                cmbTheme.SelectedIndex = 0;
+            }
+            finally
+            {
+                _isApplyingTheme = false;
+            }
+        }
+
+        private string GetSelectedThemeKey()
+        {
+            if (cmbTheme?.SelectedItem is ComboBoxItem item)
+            {
+                return NormalizeThemeKey(item.Tag as string);
+            }
+
+            return "Blue";
+        }
+
+        private static string NormalizeThemeKey(string themeKey)
+        {
+            return string.Equals(themeKey, "Bronze", StringComparison.OrdinalIgnoreCase) ? "Bronze" : "Blue";
+        }
+
+        private static SolidColorBrush Brush(string hex)
+        {
+            return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+        }
+
+        private static ThemePalette BuildThemePalette(string themeKey)
+        {
+            if (string.Equals(themeKey, "Bronze", StringComparison.OrdinalIgnoreCase))
+            {
+                return new ThemePalette
+                {
+                    TextMain = Brush("#F3E6CC"),
+                    TextMuted = Brush("#BDAA86"),
+                    PanelFill = Brush("#7A20160F"),
+                    InputBg = Brush("#8A140F0C"),
+                    InputStroke = Brush("#8E6B3E"),
+                    WindowShellBg = Brush("#120E0B"),
+                    WindowOuterBorderBrush = Brush("#6F4D2E"),
+                    HeaderFillBrush = Brush("#50312118"),
+                    HeaderSeparatorBrush = Brush("#120C09"),
+                    FooterFillBrush = Brush("#7A1A120C"),
+                    VersionBgBrush = Brush("#3A2A1D12"),
+                    VersionBorderBrush = Brush("#8E6B3E"),
+                    VersionTextBrush = Brush("#D9BF95"),
+                    SectionTitleBrush = Brush("#F3E6CC"),
+                    SectionLineBrush = Brush("#C48A45"),
+                    SectionLineSoftBrush = Brush("#E1B677"),
+                    PanelBorderBrush = Brush("#8E6B3E"),
+                    InnerPanelBorderBrush = Brush("#4A3623"),
+                    InnerPanelFillBrush = Brush("#6B120F0C"),
+                    WelcomePrimaryBrush = Brush("#F1E2C7"),
+                    WelcomeSecondaryBrush = Brush("#E2CFAC"),
+                    FooterDividerBrush = Brush("#9D7A4D"),
+                    ServerTextBrush = Brush("#E6D2AF"),
+                    PlayersTextBrush = Brush("#D8C2A0"),
+                    StatusDotStrokeBrush = Brush("#2C1E11"),
+                    ProgressForegroundBrush = Brush("#D69A49"),
+                    ProgressBackgroundBrush = Brush("#2A1C12"),
+                    ButtonTextBrush = Brush("#F7EBD5"),
+                    ButtonBgBrush = Brush("#6B3E1B"),
+                    ButtonBorderBrush = Brush("#DAA15A"),
+                    ButtonBgHoverBrush = Brush("#8A5626"),
+                    ButtonBorderHoverBrush = Brush("#F0C079"),
+                    ButtonBgPressedBrush = Brush("#5A3517"),
+                    ButtonSheenBrush = Brush("#E6B16B"),
+                    CloseButtonBgBrush = Brush("#6D3D1C"),
+                    CheckBorderBrush = Brush("#C48A45"),
+                    CheckBackgroundBrush = Brush("#2F2417"),
+                    CheckCheckedBgBrush = Brush("#8A5625"),
+                    CheckHoverBorderBrush = Brush("#F0C079"),
+                    CheckTickBrush = Brush("#F8E8D0"),
+                    ComboPopupBgBrush = Brush("#1A120D"),
+                    ComboItemHoverBgBrush = Brush("#4E3218"),
+                    ComboItemSelectedBgBrush = Brush("#6B3E1B"),
+                    ComboFocusBorderBrush = Brush("#A87946"),
+                    ComboArrowBrush = Brush("#D7B98C"),
+                    ButtonGlowColor = (Color)ColorConverter.ConvertFromString("#D28A39"),
+                    CheckGlowColor = (Color)ColorConverter.ConvertFromString("#B6762C"),
+                    CheckGlowStartColor = (Color)ColorConverter.ConvertFromString("#F1C887"),
+                    CheckGlowEndColor = (Color)ColorConverter.ConvertFromString("#A6672D"),
+                    BgGradTop = (Color)ColorConverter.ConvertFromString("#090A0D"),
+                    BgGradMid = (Color)ColorConverter.ConvertFromString("#1B1511"),
+                    BgGradBottom = (Color)ColorConverter.ConvertFromString("#0D0A08"),
+                    BgGlowTop = (Color)ColorConverter.ConvertFromString("#C67D2D"),
+                    BgGlowMid = (Color)ColorConverter.ConvertFromString("#5F3B1D"),
+                    BgGlowBottom = (Color)ColorConverter.ConvertFromString("#090806"),
+                    OverlayTintBrush = Brush("#55170E09"),
+                    NewsTitleBrush = Brush("#F6E7CC"),
+                    NewsLinkBrush = Brush("#E4B16D"),
+                    NewsBodyBrush = Brush("#D9C3A0"),
+                    NewsCardBackground = Brush("#66170F0C"),
+                    NewsCardBorder = Brush("#A87946"),
+                    NewsPlainTextBrush = Brush("#E7D6BA")
+                };
+            }
+
+            return new ThemePalette
+            {
+                TextMain = Brush("#E6F0FF"),
+                TextMuted = Brush("#9FB5D8"),
+                PanelFill = Brush("#6A132B59"),
+                InputBg = Brush("#6F091733"),
+                InputStroke = Brush("#5E76B6"),
+                WindowShellBg = Brush("#152D56"),
+                WindowOuterBorderBrush = Brush("#436496"),
+                HeaderFillBrush = Brush("#50183364"),
+                HeaderSeparatorBrush = Brush("#020E27"),
+                FooterFillBrush = Brush("#7A030D26"),
+                VersionBgBrush = Brush("#3A132B59"),
+                VersionBorderBrush = Brush("#5E7DB5"),
+                VersionTextBrush = Brush("#BFD7FF"),
+                SectionTitleBrush = Brush("#E5F0FF"),
+                SectionLineBrush = Brush("#6DB2FF"),
+                SectionLineSoftBrush = Brush("#8FBFF9"),
+                PanelBorderBrush = Brush("#5E7DB5"),
+                InnerPanelBorderBrush = Brush("#2B3D61"),
+                InnerPanelFillBrush = Brush("#6B081B39"),
+                WelcomePrimaryBrush = Brush("#ECF4FF"),
+                WelcomeSecondaryBrush = Brush("#ECF4FF"),
+                FooterDividerBrush = Brush("#7096D4"),
+                ServerTextBrush = Brush("#D7E8FF"),
+                PlayersTextBrush = Brush("#BBD2F9"),
+                StatusDotStrokeBrush = Brush("#0A1328"),
+                ProgressForegroundBrush = Brush("#4AAFFF"),
+                ProgressBackgroundBrush = Brush("#2A406A"),
+                ButtonTextBrush = Brush("#EAF5FF"),
+                ButtonBgBrush = Brush("#3E72CF"),
+                ButtonBorderBrush = Brush("#6EA8FF"),
+                ButtonBgHoverBrush = Brush("#4A84EA"),
+                ButtonBorderHoverBrush = Brush("#9BC8FF"),
+                ButtonBgPressedBrush = Brush("#325FAF"),
+                ButtonSheenBrush = Brush("#78C9FF"),
+                CloseButtonBgBrush = Brush("#3D78D8"),
+                CheckBorderBrush = Brush("#6FA9FF"),
+                CheckBackgroundBrush = Brush("#1D3562"),
+                CheckCheckedBgBrush = Brush("#2A67C2"),
+                CheckHoverBorderBrush = Brush("#9ED0FF"),
+                CheckTickBrush = Brush("#ECF4FF"),
+                ComboPopupBgBrush = Brush("#132745"),
+                ComboItemHoverBgBrush = Brush("#2A4776"),
+                ComboItemSelectedBgBrush = Brush("#365E98"),
+                ComboFocusBorderBrush = Brush("#5E76B6"),
+                ComboArrowBrush = Brush("#9FB5D8"),
+                ButtonGlowColor = (Color)ColorConverter.ConvertFromString("#55A8FF"),
+                CheckGlowColor = (Color)ColorConverter.ConvertFromString("#3E86E5"),
+                CheckGlowStartColor = (Color)ColorConverter.ConvertFromString("#82D2FF"),
+                CheckGlowEndColor = (Color)ColorConverter.ConvertFromString("#2A7CE0"),
+                BgGradTop = (Color)ColorConverter.ConvertFromString("#102A55"),
+                BgGradMid = (Color)ColorConverter.ConvertFromString("#1B3D73"),
+                BgGradBottom = (Color)ColorConverter.ConvertFromString("#0F2C5A"),
+                BgGlowTop = (Color)ColorConverter.ConvertFromString("#3B7EDB"),
+                BgGlowMid = (Color)ColorConverter.ConvertFromString("#1E4E93"),
+                BgGlowBottom = (Color)ColorConverter.ConvertFromString("#001229"),
+                OverlayTintBrush = Brush("#66040C23"),
+                NewsTitleBrush = Brush("#EAF4FF"),
+                NewsLinkBrush = Brush("#7EC1FF"),
+                NewsBodyBrush = Brush("#D2E3FF"),
+                NewsCardBackground = Brush("#5F0B2345"),
+                NewsCardBorder = Brush("#4D7CB7"),
+                NewsPlainTextBrush = Brush("#DCEBFF")
+            };
+        }
+
+        private void ApplyThemePalette(string themeKey)
+        {
+            _isApplyingTheme = true;
+            try
+            {
+                _themePalette = BuildThemePalette(themeKey);
+                Resources["TextMain"] = _themePalette.TextMain;
+                Resources["TextMuted"] = _themePalette.TextMuted;
+                Resources["PanelFill"] = _themePalette.PanelFill;
+                Resources["InputBg"] = _themePalette.InputBg;
+                Resources["InputStroke"] = _themePalette.InputStroke;
+                Resources["WindowShellBg"] = _themePalette.WindowShellBg;
+                Resources["WindowOuterBorderBrush"] = _themePalette.WindowOuterBorderBrush;
+                Resources["HeaderFillBrush"] = _themePalette.HeaderFillBrush;
+                Resources["HeaderSeparatorBrush"] = _themePalette.HeaderSeparatorBrush;
+                Resources["FooterFillBrush"] = _themePalette.FooterFillBrush;
+                Resources["VersionBgBrush"] = _themePalette.VersionBgBrush;
+                Resources["VersionBorderBrush"] = _themePalette.VersionBorderBrush;
+                Resources["VersionTextBrush"] = _themePalette.VersionTextBrush;
+                Resources["SectionTitleBrush"] = _themePalette.SectionTitleBrush;
+                Resources["SectionLineBrush"] = _themePalette.SectionLineBrush;
+                Resources["SectionLineSoftBrush"] = _themePalette.SectionLineSoftBrush;
+                Resources["PanelBorderBrush"] = _themePalette.PanelBorderBrush;
+                Resources["InnerPanelBorderBrush"] = _themePalette.InnerPanelBorderBrush;
+                Resources["InnerPanelFillBrush"] = _themePalette.InnerPanelFillBrush;
+                Resources["WelcomePrimaryBrush"] = _themePalette.WelcomePrimaryBrush;
+                Resources["WelcomeSecondaryBrush"] = _themePalette.WelcomeSecondaryBrush;
+                Resources["FooterDividerBrush"] = _themePalette.FooterDividerBrush;
+                Resources["ServerTextBrush"] = _themePalette.ServerTextBrush;
+                Resources["PlayersTextBrush"] = _themePalette.PlayersTextBrush;
+                Resources["StatusDotStrokeBrush"] = _themePalette.StatusDotStrokeBrush;
+                Resources["ProgressForegroundBrush"] = _themePalette.ProgressForegroundBrush;
+                Resources["ProgressBackgroundBrush"] = _themePalette.ProgressBackgroundBrush;
+                Resources["ButtonTextBrush"] = _themePalette.ButtonTextBrush;
+                Resources["ButtonBgBrush"] = _themePalette.ButtonBgBrush;
+                Resources["ButtonBorderBrush"] = _themePalette.ButtonBorderBrush;
+                Resources["ButtonBgHoverBrush"] = _themePalette.ButtonBgHoverBrush;
+                Resources["ButtonBorderHoverBrush"] = _themePalette.ButtonBorderHoverBrush;
+                Resources["ButtonBgPressedBrush"] = _themePalette.ButtonBgPressedBrush;
+                Resources["ButtonSheenBrush"] = _themePalette.ButtonSheenBrush;
+                Resources["CloseButtonBgBrush"] = _themePalette.CloseButtonBgBrush;
+                Resources["CheckBorderBrush"] = _themePalette.CheckBorderBrush;
+                Resources["CheckBackgroundBrush"] = _themePalette.CheckBackgroundBrush;
+                Resources["CheckCheckedBgBrush"] = _themePalette.CheckCheckedBgBrush;
+                Resources["CheckHoverBorderBrush"] = _themePalette.CheckHoverBorderBrush;
+                Resources["CheckTickBrush"] = _themePalette.CheckTickBrush;
+                Resources["ComboPopupBgBrush"] = _themePalette.ComboPopupBgBrush;
+                Resources["ComboItemHoverBgBrush"] = _themePalette.ComboItemHoverBgBrush;
+                Resources["ComboItemSelectedBgBrush"] = _themePalette.ComboItemSelectedBgBrush;
+                Resources["ComboFocusBorderBrush"] = _themePalette.ComboFocusBorderBrush;
+                Resources["ComboArrowBrush"] = _themePalette.ComboArrowBrush;
+                Resources["ButtonGlowColor"] = _themePalette.ButtonGlowColor;
+                Resources["CheckGlowColor"] = _themePalette.CheckGlowColor;
+                Resources["CheckGlowStartColor"] = _themePalette.CheckGlowStartColor;
+                Resources["CheckGlowEndColor"] = _themePalette.CheckGlowEndColor;
+                Resources["BgGradTop"] = _themePalette.BgGradTop;
+                Resources["BgGradMid"] = _themePalette.BgGradMid;
+                Resources["BgGradBottom"] = _themePalette.BgGradBottom;
+                Resources["BgGlowTop"] = _themePalette.BgGlowTop;
+                Resources["BgGlowMid"] = _themePalette.BgGlowMid;
+                Resources["BgGlowBottom"] = _themePalette.BgGlowBottom;
+                Resources["OverlayTintBrush"] = _themePalette.OverlayTintBrush;
+            }
+            finally
+            {
+                _isApplyingTheme = false;
+            }
         }
 
         private async Task LoadNewsAsync()
@@ -378,7 +653,7 @@ namespace RealmLauncher
                 {
                     var titleBlock = new TextBlock
                     {
-                        Foreground = (Brush)new BrushConverter().ConvertFromString("#EAF4FF"),
+                        Foreground = _themePalette?.NewsTitleBrush ?? Brush("#EAF4FF"),
                         FontSize = 15.5,
                         FontWeight = FontWeights.SemiBold,
                         TextWrapping = TextWrapping.Wrap
@@ -389,7 +664,7 @@ namespace RealmLauncher
                         {
                             NavigateUri = uri,
                             TextDecorations = TextDecorations.Underline,
-                            Foreground = (Brush)new BrushConverter().ConvertFromString("#7EC1FF")
+                            Foreground = _themePalette?.NewsLinkBrush ?? Brush("#7EC1FF")
                         };
                         hyperlink.Inlines.Clear();
                         AddTextWithEmojiInlines(hyperlink.Inlines, title, 16);
@@ -408,7 +683,7 @@ namespace RealmLauncher
                     panel.Children.Add(new TextBlock
                     {
                         Margin = new Thickness(0, 6, 0, 0),
-                        Foreground = (Brush)new BrushConverter().ConvertFromString("#D2E3FF"),
+                        Foreground = _themePalette?.NewsBodyBrush ?? Brush("#D2E3FF"),
                         FontSize = 13.2,
                         TextWrapping = TextWrapping.Wrap
                     });
@@ -416,8 +691,8 @@ namespace RealmLauncher
                 }
                 var border = new Border
                 {
-                    Background = (Brush)new BrushConverter().ConvertFromString("#5F0B2345"),
-                    BorderBrush = (Brush)new BrushConverter().ConvertFromString("#4D7CB7"),
+                    Background = _themePalette?.NewsCardBackground ?? Brush("#5F0B2345"),
+                    BorderBrush = _themePalette?.NewsCardBorder ?? Brush("#4D7CB7"),
                     BorderThickness = new Thickness(1),
                     CornerRadius = new CornerRadius(10),
                     Padding = new Thickness(10, 8, 10, 9),
@@ -441,7 +716,7 @@ namespace RealmLauncher
             var doc = CreateNewsDocument();
             doc.Blocks.Add(new Paragraph(new Run(text ?? string.Empty))
             {
-                Foreground = (Brush)new BrushConverter().ConvertFromString("#DCEBFF"),
+                Foreground = _themePalette?.NewsPlainTextBrush ?? Brush("#DCEBFF"),
                 FontSize = 13.5,
                 Margin = new Thickness(0)
             });
@@ -631,15 +906,43 @@ namespace RealmLauncher
                     SetProgress(StageModsEnd, "Обновление модов не требуется.");
                 }
 
-                SetStatus("Обновление modlist.txt...");
-                var modListPath = _launcherService.WriteModListFile(_settings.ConanExePath, config.Mods, AppendLog);
-                AppendLog("modlist.txt обновлён: " + modListPath);
-                SetProgress(StageModlistDone, "modlist.txt обновлён.");
+                var modListSnapshot = _launcherService.CaptureModListSnapshot(_settings.ConanExePath);
+                var modListWasReplaced = false;
+                try
+                {
+                    SetStatus("Обновление modlist.txt...");
+                    var modListPath = _launcherService.WriteModListFile(_settings.ConanExePath, config.Mods, AppendLog);
+                    modListWasReplaced = true;
+                    AppendLog("modlist.txt обновлён: " + modListPath);
+                    SetProgress(StageModlistDone, "modlist.txt обновлён.");
 
-                SetStatus("Подключение к серверу...");
-                _launcherService.LaunchServerConnection(_settings.ConanExePath, config.Ip);
-                AppendLog("Игра запущена с авто-подключением.");
-                SetProgress(StageLaunched, "Готово. Игра запускается.");
+                    SetStatus("Подключение к серверу...");
+                    _launcherService.LaunchServerConnection(_settings.ConanExePath, config.Ip);
+                    AppendLog("Игра запущена с авто-подключением.");
+                    SetProgress(StageLaunched, "Готово. Игра запускается.");
+                }
+                finally
+                {
+                    if (modListWasReplaced)
+                    {
+                        try
+                        {
+                            await Task.Delay(3500, _cts.Token);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                        }
+
+                        try
+                        {
+                            _launcherService.RestoreModListSnapshot(_settings.ConanExePath, modListSnapshot, AppendLog);
+                        }
+                        catch (Exception restoreEx)
+                        {
+                            AppendLog("ПРЕДУПРЕЖДЕНИЕ: не удалось восстановить исходный modlist.txt: " + restoreEx.Message);
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -1142,6 +1445,72 @@ namespace RealmLauncher
             _updateService.InstallAndRestart(packagePath);
             SetProgress(1.0, "Обновление установлено. Перезапуск...");
             Application.Current.Shutdown();
+        }
+
+        private sealed class ThemePalette
+        {
+            public Brush TextMain { get; set; }
+            public Brush TextMuted { get; set; }
+            public Brush PanelFill { get; set; }
+            public Brush InputBg { get; set; }
+            public Brush InputStroke { get; set; }
+            public Brush WindowShellBg { get; set; }
+            public Brush WindowOuterBorderBrush { get; set; }
+            public Brush HeaderFillBrush { get; set; }
+            public Brush HeaderSeparatorBrush { get; set; }
+            public Brush FooterFillBrush { get; set; }
+            public Brush VersionBgBrush { get; set; }
+            public Brush VersionBorderBrush { get; set; }
+            public Brush VersionTextBrush { get; set; }
+            public Brush SectionTitleBrush { get; set; }
+            public Brush SectionLineBrush { get; set; }
+            public Brush SectionLineSoftBrush { get; set; }
+            public Brush PanelBorderBrush { get; set; }
+            public Brush InnerPanelBorderBrush { get; set; }
+            public Brush InnerPanelFillBrush { get; set; }
+            public Brush WelcomePrimaryBrush { get; set; }
+            public Brush WelcomeSecondaryBrush { get; set; }
+            public Brush FooterDividerBrush { get; set; }
+            public Brush ServerTextBrush { get; set; }
+            public Brush PlayersTextBrush { get; set; }
+            public Brush StatusDotStrokeBrush { get; set; }
+            public Brush ProgressForegroundBrush { get; set; }
+            public Brush ProgressBackgroundBrush { get; set; }
+            public Brush ButtonTextBrush { get; set; }
+            public Brush ButtonBgBrush { get; set; }
+            public Brush ButtonBorderBrush { get; set; }
+            public Brush ButtonBgHoverBrush { get; set; }
+            public Brush ButtonBorderHoverBrush { get; set; }
+            public Brush ButtonBgPressedBrush { get; set; }
+            public Brush ButtonSheenBrush { get; set; }
+            public Brush CloseButtonBgBrush { get; set; }
+            public Brush CheckBorderBrush { get; set; }
+            public Brush CheckBackgroundBrush { get; set; }
+            public Brush CheckCheckedBgBrush { get; set; }
+            public Brush CheckHoverBorderBrush { get; set; }
+            public Brush CheckTickBrush { get; set; }
+            public Brush ComboPopupBgBrush { get; set; }
+            public Brush ComboItemHoverBgBrush { get; set; }
+            public Brush ComboItemSelectedBgBrush { get; set; }
+            public Brush ComboFocusBorderBrush { get; set; }
+            public Brush ComboArrowBrush { get; set; }
+            public Color ButtonGlowColor { get; set; }
+            public Color CheckGlowColor { get; set; }
+            public Color CheckGlowStartColor { get; set; }
+            public Color CheckGlowEndColor { get; set; }
+            public Color BgGradTop { get; set; }
+            public Color BgGradMid { get; set; }
+            public Color BgGradBottom { get; set; }
+            public Color BgGlowTop { get; set; }
+            public Color BgGlowMid { get; set; }
+            public Color BgGlowBottom { get; set; }
+            public Brush OverlayTintBrush { get; set; }
+            public Brush NewsTitleBrush { get; set; }
+            public Brush NewsLinkBrush { get; set; }
+            public Brush NewsBodyBrush { get; set; }
+            public Brush NewsCardBackground { get; set; }
+            public Brush NewsCardBorder { get; set; }
+            public Brush NewsPlainTextBrush { get; set; }
         }
 
         private static string FormatSize(long bytes)
