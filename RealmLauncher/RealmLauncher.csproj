@@ -33,7 +33,7 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationIcon>realm22.ico</ApplicationIcon>
+    <ApplicationIcon>realm3.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Facepunch.Steamworks.Win64, Version=2.3.3.0, Culture=neutral, processorArchitecture=AMD64">
@@ -147,6 +147,9 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="realm22.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="realm3.ico" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
