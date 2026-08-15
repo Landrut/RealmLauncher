@@ -23,6 +23,9 @@ namespace RealmLauncher.Models
         [JsonProperty("password")]
         public string Password { get; set; }
 
+        [JsonProperty("game_password")]
+        public string GamePassword { get; set; }
+
         [JsonProperty("links")]
         public List<ServerLink> Links { get; set; }
 

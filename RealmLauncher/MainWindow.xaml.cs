@@ -1327,7 +1327,8 @@ namespace RealmLauncher
 
                     SetStatus("Запуск игры и подключение к серверу...");
                     _launcherService.LaunchServerConnection(
-                        gamePath, config.Ip, chkBattlEye.IsChecked == true, AppendLog);
+                        gamePath, config.Name, config.Ip, config.GamePassword,
+                        chkBattlEye.IsChecked == true, AppendLog);
                     AppendLog("Игра запущена с автоподключением к " + config.Ip);
                     SetProgress(StageLaunched, "Готово. Игра запускается.");
                     ShowPlayingPresence();

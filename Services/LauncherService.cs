@@ -185,7 +185,45 @@ namespace RealmLauncher.Services
             var modListPath = Path.Combine(modsDirectory, "modlist.txt");
             File.WriteAllLines(modListPath, modEntries);
 
+            WriteServerModListFile(sandboxDirectory, modEntries, log);
+
             return modListPath;
+        }
+
+        private static void WriteServerModListFile(string sandboxDirectory, string[] modEntries, Action<string> log)
+        {
+            try
+            {
+                var serverEntries = modEntries
+                    .Select(path => "*" + MakeRelativePath(sandboxDirectory, path))
+                    .ToArray();
+
+                File.WriteAllLines(Path.Combine(sandboxDirectory, "servermodlist.txt"), serverEntries);
+            }
+            catch (Exception ex)
+            {
+                log("Не удалось записать servermodlist.txt: " + ex.Message);
+            }
+        }
+
+        private static string MakeRelativePath(string fromDirectory, string toPath)
+        {
+            var separator = Path.DirectorySeparatorChar.ToString();
+            if (!fromDirectory.EndsWith(separator, StringComparison.Ordinal))
+            {
+                fromDirectory += separator;
+            }
+
+            var fromUri = new Uri(fromDirectory);
+            var toUri = new Uri(toPath);
+
+            if (!string.Equals(fromUri.Scheme, toUri.Scheme, StringComparison.OrdinalIgnoreCase))
+            {
+                return toPath;
+            }
+
+            var relative = Uri.UnescapeDataString(fromUri.MakeRelativeUri(toUri).ToString());
+            return relative.Replace('/', Path.DirectorySeparatorChar);
         }
 
         public ModListSnapshot CaptureModListSnapshot(string conanExePath)
@@ -229,7 +267,13 @@ namespace RealmLauncher.Services
             return Path.Combine(sandboxDirectory, "Mods", "modlist.txt");
         }
 
-        public Process LaunchServerConnection(string conanExePath, string serverIp, bool useBattlEye, Action<string> log)
+        public Process LaunchServerConnection(
+            string conanExePath,
+            string serverName,
+            string serverIp,
+            string serverPassword,
+            bool useBattlEye,
+            Action<string> log)
         {
             RequireGameExe(conanExePath);
 
@@ -238,7 +282,13 @@ namespace RealmLauncher.Services
                 throw new InvalidOperationException("IP сервера пустой.");
             }
 
-            GameConfigService.SetLastConnectedServer(conanExePath, serverIp.Trim(), log);
+            var address = serverIp.Trim();
+            var password = serverPassword ?? string.Empty;
+
+            GameConfigService.RemoveServerModListEntry(conanExePath, log);
+            GameConfigService.SetLastConnectedServer(conanExePath, address, password, log);
+            GameConfigService.EnsureFavoriteServer(conanExePath, serverName, address, log);
+            GameConfigService.WriteModRestartData(conanExePath, address, password, log);
 
             var launchExe = GameConfigService.ResolveLaunchExe(conanExePath, useBattlEye);
             log("Запуск: " + Path.GetFileName(launchExe) + (useBattlEye ? " (BattlEye)" : " (без BattlEye)"));
