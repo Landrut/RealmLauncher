@@ -137,6 +137,24 @@
     <Compile Include="..\Services\UrlSecurity.cs">
       <Link>Services\UrlSecurity.cs</Link>
     </Compile>
+    <Compile Include="..\Services\SteamLocator.cs">
+      <Link>Services\SteamLocator.cs</Link>
+    </Compile>
+    <Compile Include="..\Services\GameConfigService.cs">
+      <Link>Services\GameConfigService.cs</Link>
+    </Compile>
+    <Compile Include="..\Services\DiscordRichPresence.cs">
+      <Link>Services\DiscordRichPresence.cs</Link>
+    </Compile>
+    <Compile Include="..\Services\StartupManager.cs">
+      <Link>Services\StartupManager.cs</Link>
+    </Compile>
+    <Compile Include="..\Services\OnlineHistory.cs">
+      <Link>Services\OnlineHistory.cs</Link>
+    </Compile>
+    <Compile Include="..\Services\ModListService.cs">
+      <Link>Services\ModListService.cs</Link>
+    </Compile>
     <Compile Include="..\Services\LauncherUpdateService.cs">
       <Link>Services\LauncherUpdateService.cs</Link>
     </Compile>

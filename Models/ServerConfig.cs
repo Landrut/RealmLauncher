@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace RealmLauncher.Models
@@ -23,9 +23,40 @@ namespace RealmLauncher.Models
         [JsonProperty("password")]
         public string Password { get; set; }
 
+        [JsonProperty("links")]
+        public List<ServerLink> Links { get; set; }
+
+        [JsonProperty("discord")]
+        public DiscordPresenceConfig Discord { get; set; }
+
         public ServerConfig()
         {
             Mods = new List<string>();
+            Links = new List<ServerLink>();
         }
+    }
+
+    public sealed class DiscordPresenceConfig
+    {
+        [JsonProperty("details_idle")]
+        public string DetailsIdle { get; set; }
+
+        [JsonProperty("details_playing")]
+        public string DetailsPlaying { get; set; }
+
+        [JsonProperty("large_image")]
+        public string LargeImage { get; set; }
+
+        [JsonProperty("large_text")]
+        public string LargeText { get; set; }
+    }
+
+    public sealed class ServerLink
+    {
+        [JsonProperty("title")]
+        public string Title { get; set; }
+
+        [JsonProperty("url")]
+        public string Url { get; set; }
     }
 }

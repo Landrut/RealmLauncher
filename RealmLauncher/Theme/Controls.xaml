@@ -591,6 +591,177 @@
         </Style.Triggers>
     </Style>
 
+    <Style x:Key="LinkChipStyle" TargetType="Button">
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Padding" Value="11,0"/>
+        <Setter Property="Margin" Value="0,6,6,0"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="Medium"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Root"
+                            CornerRadius="8"
+                            Background="{DynamicResource SurfaceAltBrush}"
+                            BorderBrush="{DynamicResource StrokeBrush}"
+                            BorderThickness="1">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Root" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                            <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ModRowContainerStyle" TargetType="ListBoxItem">
+        <Setter Property="OverridesDefaultStyle" Value="True"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Grid>
+                        <Border x:Name="Row"
+                                Background="Transparent"
+                                BorderBrush="Transparent"
+                                BorderThickness="1"
+                                CornerRadius="7"
+                                Padding="9,6">
+                            <ContentPresenter/>
+                        </Border>
+                        <Rectangle x:Name="SelectionBar"
+                                   Width="3"
+                                   Margin="0,4"
+                                   HorizontalAlignment="Left"
+                                   RadiusX="1.5"
+                                   RadiusY="1.5"
+                                   Visibility="Collapsed"
+                                   Fill="{DynamicResource AccentBrush}"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                            <Setter TargetName="Row" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                            <Setter TargetName="SelectionBar" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                        <DataTrigger Binding="{Binding IsDragging}" Value="True">
+                            <Setter TargetName="Row" Property="Opacity" Value="0.45"/>
+                            <Setter TargetName="Row" Property="Background" Value="{DynamicResource SurfaceHoverBrush}"/>
+                        </DataTrigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <DataTemplate x:Key="ModRowTemplate">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       Text="{Binding DisplayName}"
+                       VerticalAlignment="Center"
+                       FontSize="12.5"
+                       TextTrimming="CharacterEllipsis"
+                       Foreground="{DynamicResource TextPrimaryBrush}"
+                       ToolTip="{Binding PakName}"/>
+
+            <TextBlock Grid.Column="1"
+                       Text="{Binding SizeText}"
+                       VerticalAlignment="Center"
+                       Margin="10,0,0,0"
+                       FontSize="11.5"
+                       Foreground="{DynamicResource TextMutedBrush}"/>
+
+            <Border x:Name="StatusChip"
+                    Grid.Column="2"
+                    Margin="10,0,0,0"
+                    CornerRadius="5"
+                    Padding="7,2"
+                    VerticalAlignment="Center"
+                    Background="{DynamicResource SurfaceAltBrush}">
+                <TextBlock x:Name="StatusText"
+                           Text="{Binding Status}"
+                           FontSize="10.5"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource TextMutedBrush}"/>
+            </Border>
+
+            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                <Button Tag="reinstall"
+                        Width="24" Height="24"
+                        Margin="6,0,0,0"
+                        ToolTip="Переустановить мод"
+                        Style="{DynamicResource WindowButtonStyle}">
+                    <Path Width="12" Height="12" Stretch="Uniform"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="1.5"
+                          StrokeStartLineCap="Round"
+                          StrokeEndLineCap="Round"
+                          Data="M 11 6 A 5 5 0 1 1 9 2.2 M 9 0 L 9 3 L 6 3"/>
+                </Button>
+
+                <Button x:Name="RemoveButton"
+                        Tag="remove"
+                        Width="24" Height="24"
+                        Margin="2,0,0,0"
+                        Visibility="Collapsed"
+                        ToolTip="Удалить мод"
+                        Style="{DynamicResource CloseWindowButtonStyle}">
+                    <Path Width="11" Height="12" Stretch="Uniform"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                          StrokeThickness="1.4"
+                          StrokeStartLineCap="Round"
+                          StrokeLineJoin="Round"
+                          Data="M 0 2 L 11 2 M 4 2 L 4 0 L 7 0 L 7 2 M 1.5 2 L 2.4 12 L 8.6 12 L 9.5 2"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource AncestorType=ListBox}}" Value="dev">
+                <Setter TargetName="RemoveButton" Property="Visibility" Value="Visible"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="Актуален">
+                <Setter TargetName="StatusText" Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="Готово">
+                <Setter TargetName="StatusText" Property="Foreground" Value="{DynamicResource SuccessBrush}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="Устарел">
+                <Setter TargetName="StatusText" Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="Отсутствует">
+                <Setter TargetName="StatusText" Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="Ошибка">
+                <Setter TargetName="StatusText" Property="Foreground" Value="{DynamicResource DangerBrush}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding Status}" Value="Загрузка">
+                <Setter TargetName="StatusChip" Property="Background" Value="{DynamicResource AccentSoftBrush}"/>
+                <Setter TargetName="StatusText" Property="Foreground" Value="{DynamicResource AccentBrush}"/>
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
     <Style TargetType="ToolTip">
         <Setter Property="OverridesDefaultStyle" Value="True"/>
         <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>

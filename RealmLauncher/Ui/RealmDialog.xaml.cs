@@ -7,7 +7,9 @@ namespace RealmLauncher.Ui
     public enum RealmDialogButtons
     {
         Ok,
-        YesNo
+        YesNo,
+
+        Choice
     }
 
     public enum RealmDialogType
@@ -22,9 +24,23 @@ namespace RealmLauncher.Ui
     {
         private MessageBoxResult _result = MessageBoxResult.None;
 
-        public static MessageBoxResult Show(Window owner, string title, string message, RealmDialogButtons buttons, RealmDialogType type)
+        public static MessageBoxResult ShowChoice(
+            Window owner, string title, string message, string primaryText, string secondaryText)
         {
-            var dialog = new RealmDialog(title, message, buttons, type);
+            return Show(owner, title, message, RealmDialogButtons.Choice, RealmDialogType.Question,
+                primaryText, secondaryText);
+        }
+
+        public static MessageBoxResult Show(
+            Window owner,
+            string title,
+            string message,
+            RealmDialogButtons buttons,
+            RealmDialogType type,
+            string primaryText = null,
+            string secondaryText = null)
+        {
+            var dialog = new RealmDialog(title, message, buttons, type, primaryText, secondaryText);
 
             if (owner != null && owner.IsLoaded && owner.IsVisible)
             {
@@ -39,44 +55,76 @@ namespace RealmLauncher.Ui
             return dialog._result;
         }
 
-        private RealmDialog(string title, string message, RealmDialogButtons buttons, RealmDialogType type)
+        private readonly RealmDialogButtons _buttons;
+
+        private RealmDialog(
+            string title,
+            string message,
+            RealmDialogButtons buttons,
+            RealmDialogType type,
+            string primaryText,
+            string secondaryText)
         {
             InitializeComponent();
 
+            _buttons = buttons;
             txtTitle.Text = string.IsNullOrWhiteSpace(title) ? "REALM RolePlay Launcher" : title;
             txtMessage.Text = message ?? string.Empty;
 
             ApplyDialogType(type);
-            ApplyButtons(buttons);
+            ApplyButtons(buttons, primaryText, secondaryText);
 
             KeyDown += RealmDialog_KeyDown;
+        }
+
+        private MessageBoxResult DismissResult
+        {
+            get
+            {
+                if (_buttons == RealmDialogButtons.YesNo)
+                {
+                    return MessageBoxResult.No;
+                }
+
+                return MessageBoxResult.Cancel;
+            }
         }
 
         private void RealmDialog_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape)
             {
-                _result = btnYes.Visibility == Visibility.Visible ? MessageBoxResult.No : MessageBoxResult.Cancel;
+                _result = DismissResult;
                 Close();
             }
         }
 
-        private void ApplyButtons(RealmDialogButtons buttons)
+        private void ApplyButtons(RealmDialogButtons buttons, string primaryText, string secondaryText)
         {
-            var yesNo = buttons == RealmDialogButtons.YesNo;
+            var twoActions = buttons == RealmDialogButtons.YesNo || buttons == RealmDialogButtons.Choice;
 
-            btnOk.Visibility = yesNo ? Visibility.Collapsed : Visibility.Visible;
-            btnOk.IsDefault = !yesNo;
+            btnOk.Visibility = twoActions ? Visibility.Collapsed : Visibility.Visible;
+            btnOk.IsDefault = !twoActions;
 
-            btnYes.Visibility = yesNo ? Visibility.Visible : Visibility.Collapsed;
-            btnYes.IsDefault = yesNo;
+            btnYes.Visibility = twoActions ? Visibility.Visible : Visibility.Collapsed;
+            btnYes.IsDefault = twoActions;
 
-            btnNo.Visibility = yesNo ? Visibility.Visible : Visibility.Collapsed;
-            btnNo.IsCancel = yesNo;
+            btnNo.Visibility = twoActions ? Visibility.Visible : Visibility.Collapsed;
+            btnNo.IsCancel = buttons == RealmDialogButtons.YesNo;
+
+            if (!string.IsNullOrWhiteSpace(primaryText))
+            {
+                btnYes.Content = primaryText;
+            }
+
+            if (!string.IsNullOrWhiteSpace(secondaryText))
+            {
+                btnNo.Content = secondaryText;
+            }
 
             Loaded += (s, e) =>
             {
-                if (yesNo)
+                if (twoActions)
                 {
                     btnYes.Focus();
                 }
@@ -130,7 +178,7 @@ namespace RealmLauncher.Ui
 
         private void BtnClose_OnClick(object sender, RoutedEventArgs e)
         {
-            _result = btnYes.Visibility == Visibility.Visible ? MessageBoxResult.No : MessageBoxResult.Cancel;
+            _result = DismissResult;
             Close();
         }
 

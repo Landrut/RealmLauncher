@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -16,9 +17,16 @@ namespace RealmLauncher.Models
         public string LegacyServerPassword { get; set; }
 
         public string EncryptedServerPassword { get; set; }
-        public bool DisableCinematicIntro { get; set; }
         public bool AutomaticallySubscribeToWorkshopMods { get; set; }
-        public bool BoostIngameLoading { get; set; }
+        public bool LaunchWithBattlEye { get; set; }
+        public bool NotifyWhenServerOnline { get; set; }
+        public bool ShowDiscordStatus { get; set; }
+
+        public bool DeveloperMode { get; set; }
+
+        public List<string> DevModList { get; set; }
+        public bool StartMinimized { get; set; }
+        public bool AutoStartWithWindows { get; set; }
         public string UiTheme { get; set; }
 
         private static readonly byte[] PasswordEntropy = Encoding.UTF8.GetBytes("RealmLauncher.ServerPassword.v1");
@@ -26,7 +34,11 @@ namespace RealmLauncher.Models
         public LauncherSettings()
         {
             AutomaticallySubscribeToWorkshopMods = true;
-            BoostIngameLoading = true;
+            LaunchWithBattlEye = false;
+            NotifyWhenServerOnline = true;
+            ShowDiscordStatus = true;
+            DeveloperMode = false;
+            DevModList = new List<string>();
             UiTheme = "Bronze";
         }
 

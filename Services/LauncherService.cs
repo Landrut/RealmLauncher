@@ -1,14 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -18,11 +16,68 @@ using Steamworks;
 
 namespace RealmLauncher.Services
 {
+    internal sealed class RateMeter
+    {
+        private DateTime _lastUtc;
+        private long _lastBytes;
+        private double _rate;
+
+        public double BytesPerSecond
+        {
+            get { return _rate; }
+        }
+
+        public void Update(long totalBytesSoFar)
+        {
+            var now = DateTime.UtcNow;
+
+            if (_lastUtc == default(DateTime))
+            {
+                _lastUtc = now;
+                _lastBytes = totalBytesSoFar;
+                return;
+            }
+
+            var seconds = (now - _lastUtc).TotalSeconds;
+            if (seconds < 0.5)
+            {
+                return;
+            }
+
+            var delta = totalBytesSoFar - _lastBytes;
+            _lastUtc = now;
+            _lastBytes = totalBytesSoFar;
+
+            if (delta < 0)
+            {
+                return;
+            }
+
+            var instant = delta / seconds;
+            _rate = _rate <= 0 ? instant : (_rate * 0.6) + (instant * 0.4);
+        }
+    }
+
+    public sealed class ModSyncProgress
+    {
+        public int CompletedMods { get; set; }
+        public int TotalMods { get; set; }
+        public string CurrentModName { get; set; }
+
+        public double OverallFraction { get; set; }
+
+        public long BytesDone { get; set; }
+        public long BytesTotal { get; set; }
+
+        public double BytesPerSecond { get; set; }
+        public TimeSpan? Eta { get; set; }
+    }
+
     public sealed class LauncherService
     {
-        private const int ConanSteamAppId = 440900;
-        private const string SteamCmdZipUrl = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip";
+        public const int ConanSteamAppId = 440900;
         private const string WorkshopApiUrl = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/";
+
         private static readonly HttpClient HttpClient = new HttpClient();
         private static readonly object SteamworksSync = new object();
         private static bool _steamworksInitialized;
@@ -31,29 +86,6 @@ namespace RealmLauncher.Services
         public LauncherService()
         {
             ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
-        }
-
-        public string GetSteamCmdDirectory()
-        {
-            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "steamcmd");
-        }
-
-        public string GetSteamCmdPath()
-        {
-            return Path.Combine(GetSteamCmdDirectory(), "steamcmd.exe");
-        }
-
-        public bool IsSteamCmdInstalled()
-        {
-            return File.Exists(GetSteamCmdPath());
-        }
-
-        public bool IsSteamworksInitialized()
-        {
-            lock (SteamworksSync)
-            {
-                return _steamworksInitialized;
-            }
         }
 
         public void EnsureSteamworksInitialized(Action<string> log)
@@ -95,41 +127,6 @@ namespace RealmLauncher.Services
             }
         }
 
-        public async Task InstallSteamCmdAsync(Action<string> log, CancellationToken cancellationToken)
-        {
-            var steamCmdDirectory = GetSteamCmdDirectory();
-            var zipPath = Path.Combine(steamCmdDirectory, "steamcmd.zip");
-
-            Directory.CreateDirectory(steamCmdDirectory);
-
-            log("Скачивание SteamCMD...");
-            using (var response = await HttpClient.GetAsync(SteamCmdZipUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
-            {
-                response.EnsureSuccessStatusCode();
-
-                using (var downloadStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                using (var fileStream = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
-                {
-                    await downloadStream.CopyToAsync(fileStream).ConfigureAwait(false);
-                }
-            }
-
-            log("Распаковка SteamCMD...");
-            ExtractZipOverwrite(zipPath, steamCmdDirectory);
-
-            if (File.Exists(zipPath))
-            {
-                File.Delete(zipPath);
-            }
-
-            if (!IsSteamCmdInstalled())
-            {
-                throw new InvalidOperationException("Установка SteamCMD не завершилась: steamcmd.exe не найден после распаковки.");
-            }
-
-            log("SteamCMD установлен.");
-        }
-
         public async Task<ServerConfig> DownloadConfigAsync(string configUrl, ISet<string> allowedHosts, CancellationToken cancellationToken)
         {
             var configUri = UrlSecurity.RequireAllowedHttpsUrl(configUrl, allowedHosts, "URL JSON сервера");
@@ -156,7 +153,7 @@ namespace RealmLauncher.Services
                 }
                 else
                 {
-                    // Reject malformed IDs from remote JSON before they reach steamcmd args.
+                    // Reject malformed IDs from remote JSON before they reach any file path.
                     config.Mods = config.Mods
                         .Where(x => !string.IsNullOrWhiteSpace(x))
                         .Where(x =>
@@ -173,151 +170,11 @@ namespace RealmLauncher.Services
             }
         }
 
-        public List<string> ExtractModIds(IEnumerable<string> mods)
-        {
-            if (mods == null)
-            {
-                return new List<string>();
-            }
-
-            return mods
-                .Where(m => !string.IsNullOrWhiteSpace(m))
-                .Select(m => m.Split('/')[0].Trim())
-                .Where(id => !string.IsNullOrWhiteSpace(id) && id.All(char.IsDigit))
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
-        }
-
-        public async Task SyncModsAsync(
-            string conanExePath,
-            IEnumerable<ModUpdateInfo> modsToUpdate,
-            Action<string> log,
-            Action<double, double, string> progress,
-            CancellationToken cancellationToken)
-        {
-            var steamCmdPath = GetSteamCmdPath();
-            if (!File.Exists(steamCmdPath))
-            {
-                throw new InvalidOperationException("SteamCMD не найден. Нажмите кнопку проверки и установи его.");
-            }
-            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
-            {
-                throw new InvalidOperationException("Не найден ConanSandbox.exe. Укажите корректный путь.");
-            }
-
-            var updates = modsToUpdate != null
-                ? modsToUpdate.Where(x => x != null && !string.IsNullOrWhiteSpace(x.ModId))
-                    .GroupBy(x => x.ModId)
-                    .Select(g => g.First())
-                    .ToList()
-                : new List<ModUpdateInfo>();
-
-            if (updates.Count == 0)
-            {
-                log("Нет модов для обновления.");
-                return;
-            }
-
-            var steamLibraryRoot = ResolveSteamLibraryRoot(conanExePath);
-            log("Steam Library: " + steamLibraryRoot);
-            log(string.Format("Запланировано к обновлению: {0}", updates.Count));
-            log("Проверка готовности SteamCMD...");
-            await EnsureSteamCmdReadyAsync(steamCmdPath, cancellationToken).ConfigureAwait(false);
-
-            var processed = 0;
-            for (var i = 0; i < updates.Count; i++)
-            {
-                var item = updates[i];
-                var itemLabel = string.Format("{0}/{1}", item.ModId, item.PakName);
-                log(string.Format("Обновление мода {0}/{1}: {2}", i + 1, updates.Count, itemLabel));
-
-                var lastSignalUtc = DateTime.UtcNow;
-                var effectivePercent = 0.0;
-                var gate = new object();
-                using (var progressCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
-                {
-                    var fallbackProgressTask = Task.Run(async () =>
-                    {
-                        while (!progressCts.IsCancellationRequested)
-                        {
-                            await Task.Delay(700, progressCts.Token).ConfigureAwait(false);
-
-                            lock (gate)
-                            {
-                                if ((DateTime.UtcNow - lastSignalUtc).TotalSeconds >= 1.5 && effectivePercent < 95)
-                                {
-                                    effectivePercent = Math.Min(95, effectivePercent + 2.5);
-                                    if (progress != null)
-                                    {
-                                        var current = processed + (effectivePercent / 100.0);
-                                        progress(current, updates.Count, itemLabel);
-                                    }
-                                }
-                            }
-                        }
-                    }, progressCts.Token);
-
-                var result = await RunSteamCmdAsync(
-                    steamCmdPath,
-                    BuildBatchArguments(steamLibraryRoot, new[] { item.ModId }),
-                    cancellationToken,
-                    percent =>
-                    {
-                        lock (gate)
-                        {
-                            lastSignalUtc = DateTime.UtcNow;
-                            if (percent > effectivePercent)
-                            {
-                                effectivePercent = percent;
-                            }
-
-                            if (progress != null)
-                            {
-                                var current = processed + (effectivePercent / 100.0);
-                                progress(current, updates.Count, itemLabel);
-                            }
-                        }
-                    }).ConfigureAwait(false);
-
-                    progressCts.Cancel();
-                    try
-                    {
-                        await fallbackProgressTask.ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                    }
-
-                if (result.ExitCode != 0)
-                {
-                    var stdoutTail = LastLines(result.StdOut, 20);
-                    var stderrTail = LastLines(result.StdErr, 20);
-                    throw new InvalidOperationException(
-                        "steamcmd завершился с ошибкой при обработке мода " + item.ModId + ". Код: " + result.ExitCode + Environment.NewLine +
-                        "STDOUT (хвост): " + stdoutTail + Environment.NewLine +
-                        "STDERR (хвост): " + stderrTail);
-                }
-                }
-
-                processed++;
-                if (progress != null)
-                {
-                    progress(processed, updates.Count, itemLabel);
-                }
-                log(string.Format("Готово: {0}/{1}", processed, updates.Count));
-            }
-
-            log("Все моды синхронизированы.");
-        }
-
         public string WriteModListFile(string conanExePath, IEnumerable<string> mods, Action<string> log)
         {
-            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
-            {
-                throw new InvalidOperationException("Не найден ConanSandbox.exe. Укажите корректный путь.");
-            }
+            RequireGameExe(conanExePath);
 
-            var sandboxDirectory = ResolveConanSandboxDirectory(conanExePath);
+            var sandboxDirectory = GameConfigService.ResolveSandboxDirectory(conanExePath);
             var modsDirectory = Path.Combine(sandboxDirectory, "Mods");
             Directory.CreateDirectory(modsDirectory);
 
@@ -333,48 +190,26 @@ namespace RealmLauncher.Services
 
         public ModListSnapshot CaptureModListSnapshot(string conanExePath)
         {
-            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
-            {
-                throw new InvalidOperationException("Не найден ConanSandbox.exe. Укажите корректный путь.");
-            }
+            RequireGameExe(conanExePath);
 
-            var sandboxDirectory = ResolveConanSandboxDirectory(conanExePath);
-            var modsDirectory = Path.Combine(sandboxDirectory, "Mods");
-            var modListPath = Path.Combine(modsDirectory, "modlist.txt");
-
+            var modListPath = GetModListPath(conanExePath);
             if (!File.Exists(modListPath))
             {
-                return new ModListSnapshot
-                {
-                    Exists = false,
-                    Bytes = Array.Empty<byte>()
-                };
+                return new ModListSnapshot { Exists = false, Bytes = Array.Empty<byte>() };
             }
 
-            return new ModListSnapshot
-            {
-                Exists = true,
-                Bytes = File.ReadAllBytes(modListPath)
-            };
+            return new ModListSnapshot { Exists = true, Bytes = File.ReadAllBytes(modListPath) };
         }
 
         public void RestoreModListSnapshot(string conanExePath, ModListSnapshot snapshot, Action<string> log)
         {
-            if (snapshot == null)
+            if (snapshot == null || string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
             {
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
-            {
-                return;
-            }
-
-            var sandboxDirectory = ResolveConanSandboxDirectory(conanExePath);
-            var modsDirectory = Path.Combine(sandboxDirectory, "Mods");
-            var modListPath = Path.Combine(modsDirectory, "modlist.txt");
-
-            Directory.CreateDirectory(modsDirectory);
+            var modListPath = GetModListPath(conanExePath);
+            Directory.CreateDirectory(Path.GetDirectoryName(modListPath));
 
             if (snapshot.Exists)
             {
@@ -388,90 +223,227 @@ namespace RealmLauncher.Services
             }
         }
 
-        public void LaunchServerConnection(string conanExePath, string serverIp)
+        private static string GetModListPath(string conanExePath)
         {
-            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
-            {
-                throw new InvalidOperationException("Не найден ConanSandbox.exe. Укажите корректный путь.");
-            }
+            var sandboxDirectory = GameConfigService.ResolveSandboxDirectory(conanExePath);
+            return Path.Combine(sandboxDirectory, "Mods", "modlist.txt");
+        }
+
+        public Process LaunchServerConnection(string conanExePath, string serverIp, bool useBattlEye, Action<string> log)
+        {
+            RequireGameExe(conanExePath);
+
             if (string.IsNullOrWhiteSpace(serverIp))
             {
                 throw new InvalidOperationException("IP сервера пустой.");
             }
 
-            var safeIp = serverIp.Trim();
-            TrySetLastConnected(conanExePath, safeIp);
-            var launchExe = ResolvePreferredLaunchExe(conanExePath);
+            GameConfigService.SetLastConnectedServer(conanExePath, serverIp.Trim(), log);
 
-            Process.Start(new ProcessStartInfo
+            var launchExe = GameConfigService.ResolveLaunchExe(conanExePath, useBattlEye);
+            log("Запуск: " + Path.GetFileName(launchExe) + (useBattlEye ? " (BattlEye)" : " (без BattlEye)"));
+
+            return Process.Start(new ProcessStartInfo
             {
                 FileName = launchExe,
                 Arguments = "-continuesession",
+                WorkingDirectory = Path.GetDirectoryName(launchExe),
                 UseShellExecute = true
             });
         }
 
-        public void ApplyNetworkSpeedPreset(string conanExePath, bool enabled, Action<string> log)
+        public Process LaunchLocalGame(string conanExePath, bool useBattlEye, Action<string> log)
         {
-            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
-            {
-                throw new InvalidOperationException("Не найден ConanSandbox.exe. Укажите корректный путь.");
-            }
+            RequireGameExe(conanExePath);
 
-            var gameRoot = Path.GetDirectoryName(conanExePath);
-            if (string.IsNullOrWhiteSpace(gameRoot))
-            {
-                throw new InvalidOperationException("Не удалось определить корневую папку игры.");
-            }
+            var launchExe = GameConfigService.ResolveLaunchExe(conanExePath, useBattlEye);
+            var arguments = (AppRuntimeConfig.LocalPlayArguments ?? string.Empty).Trim();
 
-            var baseEnginePath = Path.Combine(gameRoot, "Engine", "Config", "BaseEngine.ini");
-            if (!File.Exists(baseEnginePath))
-            {
-                log("ПРЕДУПРЕЖДЕНИЕ: BaseEngine.ini не найден, настройка скорости пропущена: " + baseEnginePath);
-                return;
-            }
+            log("Локальный запуск: " + Path.GetFileName(launchExe) +
+                (string.IsNullOrEmpty(arguments) ? string.Empty : " " + arguments));
 
-            var speed = enabled ? "250000" : "10000";
-            var lines = File.ReadAllLines(baseEnginePath).ToList();
-            var changed = false;
-
-            changed |= UpsertIniLine(lines, "ConfiguredInternetSpeed", speed);
-            changed |= UpsertIniLine(lines, "ConfiguredLanSpeed", speed);
-
-            if (changed)
+            return Process.Start(new ProcessStartInfo
             {
-                File.WriteAllLines(baseEnginePath, lines);
-                log(string.Format("Скорость сети в BaseEngine.ini установлена: {0}", speed));
-            }
-            else
-            {
-                log("Скорость сети в BaseEngine.ini уже актуальна.");
-            }
+                FileName = launchExe,
+                Arguments = arguments,
+                WorkingDirectory = Path.GetDirectoryName(launchExe),
+                UseShellExecute = true
+            });
         }
 
-        private static bool UpsertIniLine(List<string> lines, string key, string value)
+        public async Task<bool> WaitForGameProcessAsync(TimeSpan timeout, CancellationToken cancellationToken)
         {
-            var target = key + "=" + value;
-            var regex = new Regex(@"^\s*" + Regex.Escape(key) + @"\s*=\s*.*$", RegexOptions.IgnoreCase);
+            var names = new[] { "ConanSandbox", "ConanSandbox-Win64-Shipping", "ConanSandbox_BE" };
+            var started = DateTime.UtcNow;
 
-            for (var i = 0; i < lines.Count; i++)
+            while (DateTime.UtcNow - started < timeout)
             {
-                if (!regex.IsMatch(lines[i]))
+                cancellationToken.ThrowIfCancellationRequested();
+
+                foreach (var name in names)
                 {
-                    continue;
+                    try
+                    {
+                        if (Process.GetProcessesByName(name).Any())
+                        {
+                            return true;
+                        }
+                    }
+                    catch
+                    {
+                    }
                 }
 
-                if (string.Equals(lines[i].Trim(), target, StringComparison.OrdinalIgnoreCase))
-                {
-                    return false;
-                }
-
-                lines[i] = target;
-                return true;
+                await Task.Delay(400, cancellationToken).ConfigureAwait(false);
             }
 
-            lines.Add(target);
-            return true;
+            return false;
+        }
+
+        public async Task<ModUpdateAnalysis> AnalyzeModsAsync(
+            string conanExePath,
+            IEnumerable<string> mods,
+            Action<string> log,
+            Action<int, int> progress,
+            CancellationToken cancellationToken)
+        {
+            RequireGameExe(conanExePath);
+
+            var workshopContentRoot = ResolveWorkshopContentRoot(conanExePath);
+            var entries = ParseModEntries(mods);
+            var analysis = new ModUpdateAnalysis();
+
+            if (entries.Count == 0)
+            {
+                return analysis;
+            }
+
+            EnsureSteamworksInitialized(log);
+            log(string.Format("Проверка {0} мод(ов) через Steam...", entries.Count));
+
+            var sizes = await TryLoadWorkshopSizesAsync(
+                entries.Select(x => x.ModId).Distinct().ToList(), log, cancellationToken).ConfigureAwait(false);
+
+            for (var i = 0; i < entries.Count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var entry = entries[i];
+                progress?.Invoke(i + 1, entries.Count);
+
+                long size;
+                if (!sizes.TryGetValue(entry.ModId, out size))
+                {
+                    size = 0;
+                }
+
+                var pakPath = Path.Combine(workshopContentRoot, entry.ModId, entry.PakName);
+                var status = await ResolveModStatusAsync(entry, pakPath, cancellationToken).ConfigureAwait(false);
+
+                analysis.All.Add(new ModUpdateInfo
+                {
+                    ModId = entry.ModId,
+                    PakName = entry.PakName,
+                    Status = status,
+                    SizeBytes = size
+                });
+
+                if (!string.Equals(status, ModStatus.UpToDate, StringComparison.Ordinal))
+                {
+                    analysis.Updates.Add(new ModUpdateInfo
+                    {
+                        ModId = entry.ModId,
+                        PakName = entry.PakName,
+                        Status = status,
+                        SizeBytes = size
+                    });
+                }
+            }
+
+            log(string.Format("Требуют загрузки: {0} из {1}.", analysis.Updates.Count, entries.Count));
+            return analysis;
+        }
+
+        private static async Task<string> ResolveModStatusAsync(ModEntry entry, string pakPath, CancellationToken cancellationToken)
+        {
+            ulong rawId;
+            if (!ulong.TryParse(entry.ModId, out rawId))
+            {
+                return ModStatus.Missing;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var queried = await SteamUGC.QueryFileAsync((Steamworks.Data.PublishedFileId)rawId).ConfigureAwait(false);
+            if (!queried.HasValue)
+            {
+                return File.Exists(pakPath) ? ModStatus.UpToDate : ModStatus.Missing;
+            }
+
+            var item = queried.Value;
+
+            if (!item.IsInstalled)
+            {
+                return ModStatus.Missing;
+            }
+
+            if (item.NeedsUpdate)
+            {
+                return ModStatus.Outdated;
+            }
+
+            return File.Exists(pakPath) ? ModStatus.UpToDate : ModStatus.Missing;
+        }
+
+        private async Task<Dictionary<string, long>> TryLoadWorkshopSizesAsync(
+            IList<string> modIds, Action<string> log, CancellationToken cancellationToken)
+        {
+            var result = new Dictionary<string, long>(StringComparer.Ordinal);
+            if (modIds == null || modIds.Count == 0)
+            {
+                return result;
+            }
+
+            try
+            {
+                var form = new List<KeyValuePair<string, string>>();
+                for (var i = 0; i < modIds.Count; i++)
+                {
+                    form.Add(new KeyValuePair<string, string>("publishedfileids[" + i + "]", modIds[i]));
+                }
+                form.Add(new KeyValuePair<string, string>("itemcount", modIds.Count.ToString()));
+
+                using (var content = new FormUrlEncodedContent(form))
+                using (var response = await HttpClient.PostAsync(WorkshopApiUrl, content, cancellationToken).ConfigureAwait(false))
+                {
+                    response.EnsureSuccessStatusCode();
+                    var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    var root = JObject.Parse(json);
+                    var responseToken = root["response"];
+                    var details = responseToken != null ? responseToken["publishedfiledetails"] as JArray : null;
+                    if (details == null)
+                    {
+                        return result;
+                    }
+
+                    foreach (var mod in details)
+                    {
+                        var modId = mod["publishedfileid"] != null ? mod["publishedfileid"].ToString() : string.Empty;
+                        var sizeRaw = mod["file_size"] != null ? mod["file_size"].ToString() : "0";
+
+                        long sizeBytes;
+                        if (!string.IsNullOrWhiteSpace(modId) && long.TryParse(sizeRaw, out sizeBytes))
+                        {
+                            result[modId] = sizeBytes;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke("Не удалось получить размеры модов из Steam API: " + ex.Message);
+            }
+
+            return result;
         }
 
         public async Task SyncModsWithSteamworksAsync(
@@ -479,13 +451,10 @@ namespace RealmLauncher.Services
             IEnumerable<ModUpdateInfo> modsToUpdate,
             bool autoSubscribe,
             Action<string> log,
-            Action<double, double, string> progress,
+            Action<ModSyncProgress> progress,
             CancellationToken cancellationToken)
         {
-            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
-            {
-                throw new InvalidOperationException("Не найден ConanSandbox.exe. Укажите корректный путь.");
-            }
+            RequireGameExe(conanExePath);
 
             var updates = modsToUpdate != null
                 ? modsToUpdate.Where(x => x != null && !string.IsNullOrWhiteSpace(x.ModId))
@@ -496,136 +465,439 @@ namespace RealmLauncher.Services
 
             if (updates.Count == 0)
             {
-                log("Нет модов для синхронизации через Steamworks.");
+                log("Нет модов для синхронизации.");
                 return;
             }
 
             EnsureSteamworksInitialized(log);
             var workshopContentRoot = ResolveWorkshopContentRoot(conanExePath);
-            var processed = 0d;
+
+            var estimatedTotal = updates.Sum(x => Math.Max(0L, x.SizeBytes));
+            var estimatedDoneBefore = 0L;
+            var realBytesBefore = 0L;
+            var meter = new RateMeter();
 
             for (var i = 0; i < updates.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var update = updates[i];
-                var modLabel = string.Format("{0}/{1}", update.ModId, update.PakName);
-                log(string.Format("Обновление мода {0}/{1}: {2}", i + 1, updates.Count, modLabel));
-                progress?.Invoke(processed, updates.Count, modLabel);
-                var pakPath = Path.Combine(workshopContentRoot, update.ModId, update.PakName);
-                var hadBefore = File.Exists(pakPath);
-                var beforeUtc = hadBefore ? File.GetLastWriteTimeUtc(pakPath) : DateTime.MinValue;
-                var beforeSize = hadBefore ? new FileInfo(pakPath).Length : -1L;
-                var isMissingByAnalysis = string.Equals(update.Status, "Отсутствует", StringComparison.OrdinalIgnoreCase);
-                var isOutdatedByAnalysis = string.Equals(update.Status, "Устарел", StringComparison.OrdinalIgnoreCase);
+                var modSize = Math.Max(0L, update.SizeBytes);
+                log(string.Format("Мод {0}/{1}: {2}", i + 1, updates.Count, update.PakName));
 
-                ulong rawId;
-                if (!ulong.TryParse(update.ModId, out rawId))
-                {
-                    throw new InvalidOperationException("Некорректный id мода: " + update.ModId);
-                }
+                var completed = i;
+                var doneBefore = estimatedDoneBefore;
+                var realBefore = realBytesBefore;
+                var lastRealForMod = 0L;
 
-                var publishedFileId = (Steamworks.Data.PublishedFileId)rawId;
-                var queried = await SteamUGC.QueryFileAsync(publishedFileId).ConfigureAwait(false);
-                if (!queried.HasValue)
+                Action<long, long> report = (downloaded, total) =>
                 {
-                    throw new InvalidOperationException("Steamworks не вернул данные для мода " + update.ModId);
-                }
+                    lastRealForMod = downloaded;
 
-                var item = queried.Value;
-                if (autoSubscribe && !item.IsSubscribed)
-                {
-                    var subscribed = await item.Subscribe().ConfigureAwait(false);
-                    if (!subscribed)
+                    var modFraction = total > 0 ? Math.Max(0d, Math.Min(1d, downloaded / (double)total)) : 0d;
+                    var overall = (completed + modFraction) / updates.Count;
+
+                    meter.Update(realBefore + downloaded);
+                    var speed = meter.BytesPerSecond;
+
+                    TimeSpan? eta = null;
+                    var remaining = (total > 0 ? total - downloaded : 0L) +
+                                    Math.Max(0L, estimatedTotal - doneBefore - modSize);
+                    if (speed > 1024 && remaining > 0)
                     {
-                        throw new InvalidOperationException("Не удалось подписаться на мод " + update.ModId + " через Steamworks.");
+                        eta = TimeSpan.FromSeconds(remaining / speed);
                     }
-                    log("Подписка оформлена: " + update.ModId);
+
+                    progress?.Invoke(new ModSyncProgress
+                    {
+                        CompletedMods = completed,
+                        TotalMods = updates.Count,
+                        CurrentModName = update.PakName,
+                        OverallFraction = overall,
+                        BytesDone = downloaded,
+                        BytesTotal = total,
+                        BytesPerSecond = speed,
+                        Eta = eta
+                    });
+                };
+
+                report(0, modSize);
+                await DownloadSingleModAsync(update, workshopContentRoot, autoSubscribe, false, log, report, cancellationToken)
+                    .ConfigureAwait(false);
+
+                estimatedDoneBefore += modSize;
+                realBytesBefore += Math.Max(lastRealForMod, modSize);
+            }
+
+            progress?.Invoke(new ModSyncProgress
+            {
+                CompletedMods = updates.Count,
+                TotalMods = updates.Count,
+                CurrentModName = updates[updates.Count - 1].PakName,
+                OverallFraction = 1d
+            });
+
+            log("Синхронизация модов завершена.");
+        }
+
+        public async Task<ModUpdateInfo> AddModByIdAsync(
+            string conanExePath,
+            string modId,
+            Action<string> log,
+            Action<ModSyncProgress> progress,
+            CancellationToken cancellationToken)
+        {
+            RequireGameExe(conanExePath);
+            EnsureSteamworksInitialized(log);
+
+            ulong rawId;
+            if (string.IsNullOrWhiteSpace(modId) || !ulong.TryParse(modId, out rawId))
+            {
+                throw new InvalidOperationException("Некорректный ID мода: " + modId);
+            }
+
+            var workshopContentRoot = ResolveWorkshopContentRoot(conanExePath);
+            var publishedFileId = (Steamworks.Data.PublishedFileId)rawId;
+
+            var queried = await SteamUGC.QueryFileAsync(publishedFileId).ConfigureAwait(false);
+            if (!queried.HasValue)
+            {
+                throw new InvalidOperationException("Steam не знает мод с ID " + modId + ".");
+            }
+
+            var item = queried.Value;
+            log("Найден мод: " + item.Title);
+
+            if (!item.IsSubscribed)
+            {
+                if (!await item.Subscribe().ConfigureAwait(false))
+                {
+                    throw new InvalidOperationException("Не удалось подписаться на мод " + modId + ".");
                 }
-                else if (!autoSubscribe && !item.IsSubscribed)
+                log("Подписка оформлена: " + modId);
+            }
+
+            var meter = new RateMeter();
+            Action<long, long> report = (downloaded, total) =>
+            {
+                meter.Update(downloaded);
+                var speed = meter.BytesPerSecond;
+
+                progress?.Invoke(new ModSyncProgress
+                {
+                    CompletedMods = 0,
+                    TotalMods = 1,
+                    CurrentModName = item.Title,
+                    OverallFraction = total > 0 ? Math.Max(0d, Math.Min(1d, downloaded / (double)total)) : 0d,
+                    BytesDone = downloaded,
+                    BytesTotal = total,
+                    BytesPerSecond = speed,
+                    Eta = speed > 1024 && total > downloaded
+                        ? TimeSpan.FromSeconds((total - downloaded) / speed)
+                        : (TimeSpan?)null
+                });
+            };
+
+            await DownloadAndTrackAsync(item, publishedFileId, modId, 0L, report, log, cancellationToken)
+                .ConfigureAwait(false);
+
+            var pakName = ModListService.FindPakName(workshopContentRoot, modId);
+            if (string.IsNullOrWhiteSpace(pakName))
+            {
+                throw new InvalidOperationException(
+                    "Мод скачан, но .pak в его папке не найден — возможно, это не мод для Conan Exiles.");
+            }
+
+            return new ModUpdateInfo
+            {
+                ModId = modId,
+                PakName = pakName,
+                Status = ModStatus.UpToDate,
+                SizeBytes = item.SizeBytes
+            };
+        }
+
+        public async Task UnsubscribeModAsync(
+            string conanExePath,
+            string modId,
+            Action<string> log,
+            CancellationToken cancellationToken)
+        {
+            RequireGameExe(conanExePath);
+            EnsureSteamworksInitialized(log);
+
+            ulong rawId;
+            if (string.IsNullOrWhiteSpace(modId) || !ulong.TryParse(modId, out rawId))
+            {
+                throw new InvalidOperationException("Некорректный ID мода: " + modId);
+            }
+
+            var publishedFileId = (Steamworks.Data.PublishedFileId)rawId;
+            var queried = await SteamUGC.QueryFileAsync(publishedFileId).ConfigureAwait(false);
+
+            if (queried.HasValue && queried.Value.IsSubscribed)
+            {
+                await queried.Value.Unsubscribe().ConfigureAwait(false);
+                log("Подписка снята: " + modId);
+            }
+            else
+            {
+                log("Мод не был подписан: " + modId);
+            }
+
+            await Task.Delay(800, cancellationToken).ConfigureAwait(false);
+            DeleteWorkshopFolder(ResolveWorkshopContentRoot(conanExePath), modId, log);
+        }
+
+        public async Task ReinstallModAsync(
+            string conanExePath,
+            ModUpdateInfo mod,
+            Action<string> log,
+            Action<ModSyncProgress> progress,
+            CancellationToken cancellationToken)
+        {
+            RequireGameExe(conanExePath);
+            EnsureSteamworksInitialized(log);
+
+            var workshopContentRoot = ResolveWorkshopContentRoot(conanExePath);
+            var meter = new RateMeter();
+
+            Action<long, long> report = (downloaded, total) =>
+            {
+                var fraction = total > 0 ? Math.Max(0d, Math.Min(1d, downloaded / (double)total)) : 0d;
+                meter.Update(downloaded);
+                var speed = meter.BytesPerSecond;
+
+                progress?.Invoke(new ModSyncProgress
+                {
+                    CompletedMods = 0,
+                    TotalMods = 1,
+                    CurrentModName = mod.PakName,
+                    OverallFraction = fraction,
+                    BytesDone = downloaded,
+                    BytesTotal = total,
+                    BytesPerSecond = speed,
+                    Eta = speed > 1024 && total > downloaded
+                        ? TimeSpan.FromSeconds((total - downloaded) / speed)
+                        : (TimeSpan?)null
+                });
+            };
+
+            log("Переустановка мода: " + mod.PakName);
+            await DownloadSingleModAsync(mod, workshopContentRoot, true, true, log, report, cancellationToken).ConfigureAwait(false);
+
+            progress?.Invoke(new ModSyncProgress
+            {
+                CompletedMods = 1,
+                TotalMods = 1,
+                CurrentModName = mod.PakName,
+                OverallFraction = 1d
+            });
+
+            log("Мод переустановлен: " + mod.PakName);
+        }
+
+        private static async Task DownloadSingleModAsync(
+            ModUpdateInfo update,
+            string workshopContentRoot,
+            bool autoSubscribe,
+            bool forceRefresh,
+            Action<string> log,
+            Action<long, long> report,
+            CancellationToken cancellationToken)
+        {
+            var pakPath = Path.Combine(workshopContentRoot, update.ModId, update.PakName);
+            var hadBefore = File.Exists(pakPath);
+            var beforeUtc = hadBefore ? File.GetLastWriteTimeUtc(pakPath) : DateTime.MinValue;
+            var beforeSize = hadBefore ? new FileInfo(pakPath).Length : -1L;
+
+            ulong rawId;
+            if (!ulong.TryParse(update.ModId, out rawId))
+            {
+                throw new InvalidOperationException("Некорректный id мода: " + update.ModId);
+            }
+
+            var publishedFileId = (Steamworks.Data.PublishedFileId)rawId;
+            var queried = await SteamUGC.QueryFileAsync(publishedFileId).ConfigureAwait(false);
+            if (!queried.HasValue)
+            {
+                throw new InvalidOperationException("Steamworks не вернул данные для мода " + update.ModId);
+            }
+
+            var item = queried.Value;
+
+            if (!item.IsSubscribed)
+            {
+                if (!autoSubscribe)
                 {
                     throw new InvalidOperationException(
                         "Мод " + update.ModId + " не подписан в Workshop, а автоподписка отключена. " +
                         "Включите опцию \"Авто-подписка на моды Workshop\".");
                 }
 
-                var needsDownload = isMissingByAnalysis || isOutdatedByAnalysis || !item.IsInstalled || item.NeedsUpdate;
-                if (needsDownload)
+                if (!await item.Subscribe().ConfigureAwait(false))
                 {
-                    var ok = await item.DownloadAsync(
-                        fraction =>
-                        {
-                            var clamped = Math.Max(0d, Math.Min(1d, fraction));
-                            progress?.Invoke(processed + clamped, updates.Count, modLabel);
-                        },
-                        1800,
-                        cancellationToken).ConfigureAwait(false);
-
-                    if (!ok)
-                    {
-                        throw new InvalidOperationException("Steam не смог завершить загрузку мода " + update.ModId);
-                    }
+                    throw new InvalidOperationException("Не удалось подписаться на мод " + update.ModId + ".");
                 }
-
-                var exists = await WaitForFileAsync(pakPath, TimeSpan.FromSeconds(20), cancellationToken).ConfigureAwait(false);
-                if (!exists)
-                {
-                    throw new InvalidOperationException("После загрузки не найден файл мода: " + pakPath);
-                }
-
-                // Для "Устарел" дополнительно убеждаемся, что файл реально изменился.
-                if (isOutdatedByAnalysis)
-                {
-                    var changedAfterDownload = HasLocalModFileChanged(pakPath, hadBefore, beforeUtc, beforeSize);
-                    if (!changedAfterDownload)
-                    {
-                        log("Steam не обновил файл сразу. Применяю форс-обновление (отписка -> подписка -> загрузка)...");
-
-                        await item.Unsubscribe().ConfigureAwait(false);
-                        await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
-                        var resubscribed = await item.Subscribe().ConfigureAwait(false);
-                        if (!resubscribed)
-                        {
-                            throw new InvalidOperationException("Не удалось переподписаться на мод " + update.ModId + " для форс-обновления.");
-                        }
-
-                        var refreshed = await SteamUGC.QueryFileAsync(publishedFileId).ConfigureAwait(false);
-                        if (refreshed.HasValue)
-                        {
-                            item = refreshed.Value;
-                        }
-
-                        var forcedOk = await item.DownloadAsync(
-                            fraction =>
-                            {
-                                var clamped = Math.Max(0d, Math.Min(1d, fraction));
-                                progress?.Invoke(processed + clamped, updates.Count, modLabel);
-                            },
-                            1800,
-                            cancellationToken).ConfigureAwait(false);
-
-                        if (!forcedOk)
-                        {
-                            throw new InvalidOperationException("Форс-обновление мода " + update.ModId + " не завершилось успешно.");
-                        }
-
-                        exists = await WaitForFileAsync(pakPath, TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
-                        if (!exists || !HasLocalModFileChanged(pakPath, hadBefore, beforeUtc, beforeSize))
-                        {
-                            throw new InvalidOperationException(
-                                "Steam сообщил успешную загрузку, но локальный файл мода не изменился: " + pakPath);
-                        }
-
-                        log("Форс-обновление применено: " + update.ModId);
-                    }
-                }
-
-                processed += 1d;
-                progress?.Invoke(processed, updates.Count, modLabel);
-                log(string.Format("Готово: {0}/{1}", (int)processed, updates.Count));
+                log("Подписка оформлена: " + update.ModId);
             }
 
-            log("Синхронизация модов через Steamworks завершена.");
+            if (forceRefresh)
+            {
+                item = await ForceRedownloadAsync(
+                    item, publishedFileId, update.ModId, workshopContentRoot, log, cancellationToken).ConfigureAwait(false);
+
+                hadBefore = false;
+                beforeUtc = DateTime.MinValue;
+                beforeSize = -1L;
+            }
+
+            var needsDownload = forceRefresh || !item.IsInstalled || item.NeedsUpdate ||
+                                !string.Equals(update.Status, ModStatus.UpToDate, StringComparison.Ordinal);
+
+            if (needsDownload)
+            {
+                await DownloadAndTrackAsync(
+                    item, publishedFileId, update.ModId, update.SizeBytes, report, log, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+
+            if (!await WaitForFileAsync(pakPath, TimeSpan.FromSeconds(20), cancellationToken).ConfigureAwait(false))
+            {
+                throw new InvalidOperationException("После загрузки не найден файл мода: " + pakPath);
+            }
+
+            if (!forceRefresh &&
+                string.Equals(update.Status, ModStatus.Outdated, StringComparison.Ordinal) &&
+                !HasLocalModFileChanged(pakPath, hadBefore, beforeUtc, beforeSize))
+            {
+                log("Steam не обновил файл сразу. Применяю форс-обновление...");
+
+                item = await ForceRedownloadAsync(
+                    item, publishedFileId, update.ModId, workshopContentRoot, log, cancellationToken).ConfigureAwait(false);
+
+                await DownloadAndTrackAsync(
+                    item, publishedFileId, update.ModId, update.SizeBytes, report, log, cancellationToken)
+                    .ConfigureAwait(false);
+
+                if (!await WaitForFileAsync(pakPath, TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false) ||
+                    !HasLocalModFileChanged(pakPath, hadBefore, beforeUtc, beforeSize))
+                {
+                    throw new InvalidOperationException(
+                        "Steam сообщил успешную загрузку, но локальный файл мода не изменился: " + pakPath);
+                }
+
+                log("Форс-обновление применено: " + update.ModId);
+            }
+        }
+
+        private static async Task DownloadAndTrackAsync(
+            Steamworks.Ugc.Item item,
+            Steamworks.Data.PublishedFileId publishedFileId,
+            string modId,
+            long publishedSize,
+            Action<long, long> report,
+            Action<string> log,
+            CancellationToken cancellationToken)
+        {
+            SteamUGC.Download(publishedFileId, true);
+
+            var deadline = DateTime.UtcNow.AddHours(2);
+            var waitStartedUtc = DateTime.UtcNow;
+            var sawDownloading = false;
+
+            while (DateTime.UtcNow < deadline)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var downloading = item.IsDownloading;
+                var pending = item.IsDownloadPending;
+                if (downloading)
+                {
+                    sawDownloading = true;
+                }
+
+                var size = publishedSize > 0 ? publishedSize : item.SizeBytes;
+
+                var amount = sawDownloading
+                    ? Math.Max(0d, Math.Min(1d, item.DownloadAmount))
+                    : 0d;
+
+                report((long)(size * amount), size);
+
+                var settled = item.IsInstalled && !item.NeedsUpdate && !downloading && !pending;
+                if (settled && (sawDownloading || DateTime.UtcNow - waitStartedUtc > TimeSpan.FromSeconds(6)))
+                {
+                    report(size, size);
+                    return;
+                }
+
+                if (!sawDownloading && !pending &&
+                    DateTime.UtcNow - waitStartedUtc > TimeSpan.FromSeconds(90))
+                {
+                    break;
+                }
+
+                await Task.Delay(400, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (item.IsInstalled && !item.NeedsUpdate)
+            {
+                return;
+            }
+
+            throw new InvalidOperationException("Steam не смог завершить загрузку мода " + modId + ".");
+        }
+
+        private static async Task<Steamworks.Ugc.Item> ForceRedownloadAsync(
+            Steamworks.Ugc.Item item,
+            Steamworks.Data.PublishedFileId publishedFileId,
+            string modId,
+            string workshopContentRoot,
+            Action<string> log,
+            CancellationToken cancellationToken)
+        {
+            await item.Unsubscribe().ConfigureAwait(false);
+            await Task.Delay(1200, cancellationToken).ConfigureAwait(false);
+
+            DeleteWorkshopFolder(workshopContentRoot, modId, log);
+
+            var refreshed = await SteamUGC.QueryFileAsync(publishedFileId).ConfigureAwait(false);
+            var target = refreshed.HasValue ? refreshed.Value : item;
+
+            if (!await target.Subscribe().ConfigureAwait(false))
+            {
+                throw new InvalidOperationException("Не удалось переподписаться на мод " + modId + ".");
+            }
+
+            await Task.Delay(600, cancellationToken).ConfigureAwait(false);
+
+            var afterSubscribe = await SteamUGC.QueryFileAsync(publishedFileId).ConfigureAwait(false);
+            return afterSubscribe.HasValue ? afterSubscribe.Value : target;
+        }
+
+        private static void DeleteWorkshopFolder(string workshopContentRoot, string modId, Action<string> log)
+        {
+            if (string.IsNullOrWhiteSpace(modId) || !modId.All(char.IsDigit))
+            {
+                return;
+            }
+
+            var directory = Path.Combine(workshopContentRoot, modId);
+            if (!Directory.Exists(directory))
+            {
+                return;
+            }
+
+            try
+            {
+                Directory.Delete(directory, true);
+                log?.Invoke("Локальные файлы мода удалены, будет полная перекачка: " + modId);
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke("Не удалось удалить папку мода " + modId + ": " + ex.Message);
+            }
         }
 
         public async Task<ServerQueryInfo> QueryServerInfoAsync(string host, int queryPort, CancellationToken cancellationToken)
@@ -670,27 +942,75 @@ namespace RealmLauncher.Services
             }
         }
 
-        private static void ExtractZipOverwrite(string zipPath, string destinationDirectory)
+        private static async Task<byte[]> ReceiveWithCancellationAsync(UdpClient udp, CancellationToken cancellationToken)
         {
-            using (var archive = ZipFile.OpenRead(zipPath))
+            var receiveTask = udp.ReceiveAsync();
+            var delayTask = Task.Delay(Timeout.Infinite, cancellationToken);
+            var completed = await Task.WhenAny(receiveTask, delayTask).ConfigureAwait(false);
+            if (completed == delayTask)
             {
-                foreach (var entry in archive.Entries)
-                {
-                    var destinationPath = Path.Combine(destinationDirectory, entry.FullName);
-                    var destinationFolder = Path.GetDirectoryName(destinationPath);
+                cancellationToken.ThrowIfCancellationRequested();
+            }
 
-                    if (!string.IsNullOrWhiteSpace(destinationFolder))
-                    {
-                        Directory.CreateDirectory(destinationFolder);
-                    }
+            var result = await receiveTask.ConfigureAwait(false);
+            return result.Buffer;
+        }
 
-                    if (string.IsNullOrEmpty(entry.Name))
-                    {
-                        continue;
-                    }
+        private static ServerQueryInfo ParseA2SInfo(byte[] buffer)
+        {
+            var info = new ServerQueryInfo { IsOnline = false, Name = string.Empty, Players = 0, MaxPlayers = 0 };
+            if (buffer == null || buffer.Length < 6 || buffer[4] != 0x49)
+            {
+                return info;
+            }
 
-                    entry.ExtractToFile(destinationPath, true);
-                }
+            var offset = 6; // 4*FF + header + protocol
+            var name = ReadNullTerminatedString(buffer, ref offset);
+            ReadNullTerminatedString(buffer, ref offset); // map
+            ReadNullTerminatedString(buffer, ref offset); // folder
+            ReadNullTerminatedString(buffer, ref offset); // game
+            offset += 2; // app id
+            if (offset + 1 >= buffer.Length)
+            {
+                return info;
+            }
+
+            var players = buffer[offset++];
+            var maxPlayers = buffer[offset];
+
+            info.IsOnline = true;
+            info.Name = name;
+            info.Players = players;
+            info.MaxPlayers = maxPlayers;
+            return info;
+        }
+
+        private static string ReadNullTerminatedString(byte[] buffer, ref int offset)
+        {
+            if (offset >= buffer.Length)
+            {
+                return string.Empty;
+            }
+
+            var start = offset;
+            while (offset < buffer.Length && buffer[offset] != 0x00)
+            {
+                offset++;
+            }
+
+            var value = Encoding.UTF8.GetString(buffer, start, Math.Max(0, offset - start));
+            if (offset < buffer.Length && buffer[offset] == 0x00)
+            {
+                offset++;
+            }
+            return value;
+        }
+
+        private static void RequireGameExe(string conanExePath)
+        {
+            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
+            {
+                throw new InvalidOperationException("Не найден ConanSandbox.exe. Укажите корректный путь в настройках.");
             }
         }
 
@@ -744,40 +1064,7 @@ namespace RealmLauncher.Services
             }
 
             var info = new FileInfo(fullPath);
-            var afterUtc = info.LastWriteTimeUtc;
-            var afterSize = info.Length;
-            return afterUtc > beforeUtc.AddSeconds(1) || afterSize != beforeSize;
-        }
-
-        private static string ResolveConanSandboxDirectory(string conanExePath)
-        {
-            var exeDirectoryPath = Path.GetDirectoryName(conanExePath) ?? string.Empty;
-            var exeDirectory = new DirectoryInfo(exeDirectoryPath);
-
-            if (string.Equals(exeDirectory.Name, "ConanSandbox", StringComparison.OrdinalIgnoreCase))
-            {
-                return exeDirectory.FullName;
-            }
-
-            var nestedConanSandbox = Path.Combine(exeDirectory.FullName, "ConanSandbox");
-            if (Directory.Exists(nestedConanSandbox))
-            {
-                return nestedConanSandbox;
-            }
-
-            var current = exeDirectory.Parent;
-
-            while (current != null)
-            {
-                if (string.Equals(current.Name, "ConanSandbox", StringComparison.OrdinalIgnoreCase))
-                {
-                    return current.FullName;
-                }
-
-                current = current.Parent;
-            }
-
-            throw new InvalidOperationException("Не удалось найти папку ConanSandbox рядом с указанным ConanSandbox.exe.");
+            return info.LastWriteTimeUtc > beforeUtc.AddSeconds(1) || info.Length != beforeSize;
         }
 
         private static string ResolveSteamappsDirectory(string conanExePath)
@@ -799,19 +1086,7 @@ namespace RealmLauncher.Services
                 "Ожидается путь внутри Steam-библиотеки, например ...\\steamapps\\common\\Conan Exiles\\...");
         }
 
-        private static string ResolveSteamLibraryRoot(string conanExePath)
-        {
-            var steamappsDirectory = ResolveSteamappsDirectory(conanExePath);
-            var steamapps = new DirectoryInfo(steamappsDirectory);
-            if (steamapps.Parent == null)
-            {
-                throw new InvalidOperationException("Не удалось определить корень Steam-библиотеки.");
-            }
-
-            return steamapps.Parent.FullName;
-        }
-
-        private static string ResolveWorkshopContentRoot(string conanExePath)
+        public static string ResolveWorkshopContentRoot(string conanExePath)
         {
             var steamappsDirectory = ResolveSteamappsDirectory(conanExePath);
             return Path.Combine(steamappsDirectory, "workshop", "content", ConanSteamAppId.ToString());
@@ -820,23 +1095,10 @@ namespace RealmLauncher.Services
         private static string[] BuildAbsoluteModEntries(string workshopContentRoot, IEnumerable<string> mods, Action<string> log)
         {
             var entries = new List<string>();
-            var rawMods = mods != null ? mods.Where(m => !string.IsNullOrWhiteSpace(m)).ToList() : new List<string>();
 
-            foreach (var mod in rawMods)
+            foreach (var entry in ParseModEntries(mods))
             {
-                var parts = mod.Split(new[] { '/' }, 2);
-                if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
-                {
-                    continue;
-                }
-
-                var modId = parts[0].Trim();
-                var pakFile = parts[1].Trim();
-                if (!modId.All(char.IsDigit))
-                {
-                    continue;
-                }
-                var fullPath = Path.Combine(workshopContentRoot, modId, pakFile);
+                var fullPath = Path.Combine(workshopContentRoot, entry.ModId, entry.PakName);
                 entries.Add(fullPath);
 
                 if (!File.Exists(fullPath))
@@ -846,411 +1108,6 @@ namespace RealmLauncher.Services
             }
 
             return entries.ToArray();
-        }
-
-        private async Task EnsureSteamCmdReadyAsync(string steamCmdPath, CancellationToken cancellationToken)
-        {
-            var warmup = await RunSteamCmdAsync(steamCmdPath, "+quit", cancellationToken).ConfigureAwait(false);
-            if (warmup.ExitCode == 0)
-            {
-                return;
-            }
-
-            await Task.Delay(1500, cancellationToken).ConfigureAwait(false);
-            warmup = await RunSteamCmdAsync(steamCmdPath, "+quit", cancellationToken).ConfigureAwait(false);
-            if (warmup.ExitCode != 0)
-            {
-                throw new InvalidOperationException(
-                    "SteamCMD не смог корректно инициализироваться. Код: " + warmup.ExitCode + Environment.NewLine +
-                    "STDOUT (хвост): " + LastLines(warmup.StdOut, 20) + Environment.NewLine +
-                    "STDERR (хвост): " + LastLines(warmup.StdErr, 20));
-            }
-        }
-
-        private async Task<SteamCmdResult> RunSteamCmdAsync(
-            string steamCmdPath,
-            string arguments,
-            CancellationToken cancellationToken,
-            Action<int> percentChanged = null)
-        {
-            var stdout = new StringBuilder();
-            var stderr = new StringBuilder();
-            var processStartInfo = new ProcessStartInfo
-            {
-                FileName = steamCmdPath,
-                Arguments = arguments,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                WorkingDirectory = Path.GetDirectoryName(steamCmdPath) ?? AppDomain.CurrentDomain.BaseDirectory
-            };
-
-            using (var process = new Process { StartInfo = processStartInfo })
-            {
-                process.OutputDataReceived += (_, args) =>
-                {
-                    if (args.Data == null) return;
-                    lock (stdout) stdout.AppendLine(args.Data);
-
-                    if (percentChanged != null)
-                    {
-                        var percent = ParseSteamPercent(args.Data);
-                        if (percent.HasValue)
-                        {
-                            percentChanged(percent.Value);
-                        }
-                    }
-                };
-                process.ErrorDataReceived += (_, args) =>
-                {
-                    if (args.Data == null) return;
-                    lock (stderr) stderr.AppendLine(args.Data);
-                };
-
-                process.Start();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-
-                await Task.Run(() => process.WaitForExit(), cancellationToken).ConfigureAwait(false);
-
-                return new SteamCmdResult
-                {
-                    ExitCode = process.ExitCode,
-                    StdOut = stdout.ToString(),
-                    StdErr = stderr.ToString()
-                };
-            }
-        }
-
-        private static int? ParseSteamPercent(string line)
-        {
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                return null;
-            }
-
-            var match = Regex.Match(line, @"\[\s*(\d{1,3})%\]");
-            if (!match.Success)
-            {
-                match = Regex.Match(line, @"(?:^|[^\d])(\d{1,3})\s*%(?:[^\d]|$)");
-            }
-            if (!match.Success)
-            {
-                return null;
-            }
-
-            int value;
-            if (!int.TryParse(match.Groups[1].Value, out value))
-            {
-                return null;
-            }
-
-            if (value < 0) value = 0;
-            if (value > 100) value = 100;
-            return value;
-        }
-
-        private static string LastLines(string text, int maxLines)
-        {
-            if (string.IsNullOrWhiteSpace(text))
-            {
-                return "(пусто)";
-            }
-
-            var lines = text.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None);
-            if (lines.Length <= maxLines)
-            {
-                return text.Trim();
-            }
-
-            return string.Join(Environment.NewLine, lines.Skip(lines.Length - maxLines)).Trim();
-        }
-
-        private static async Task<byte[]> ReceiveWithCancellationAsync(UdpClient udp, CancellationToken cancellationToken)
-        {
-            var receiveTask = udp.ReceiveAsync();
-            var delayTask = Task.Delay(Timeout.Infinite, cancellationToken);
-            var completed = await Task.WhenAny(receiveTask, delayTask).ConfigureAwait(false);
-            if (completed == delayTask)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-
-            var result = await receiveTask.ConfigureAwait(false);
-            return result.Buffer;
-        }
-
-        private static ServerQueryInfo ParseA2SInfo(byte[] buffer)
-        {
-            var info = new ServerQueryInfo { IsOnline = false, Name = string.Empty, Players = 0, MaxPlayers = 0 };
-            if (buffer == null || buffer.Length < 6)
-            {
-                return info;
-            }
-
-            if (buffer[4] != 0x49)
-            {
-                return info;
-            }
-
-            var offset = 6; // 4*FF + header + protocol
-            var name = ReadNullTerminatedString(buffer, ref offset);
-            ReadNullTerminatedString(buffer, ref offset); // map
-            ReadNullTerminatedString(buffer, ref offset); // folder
-            ReadNullTerminatedString(buffer, ref offset); // game
-            offset += 2; // app id
-            if (offset + 1 >= buffer.Length)
-            {
-                return info;
-            }
-
-            var players = buffer[offset++];
-            var maxPlayers = buffer[offset];
-
-            info.IsOnline = true;
-            info.Name = name;
-            info.Players = players;
-            info.MaxPlayers = maxPlayers;
-            return info;
-        }
-
-        private static string ReadNullTerminatedString(byte[] buffer, ref int offset)
-        {
-            if (offset >= buffer.Length)
-            {
-                return string.Empty;
-            }
-
-            var start = offset;
-            while (offset < buffer.Length && buffer[offset] != 0x00)
-            {
-                offset++;
-            }
-
-            var value = Encoding.UTF8.GetString(buffer, start, Math.Max(0, offset - start));
-            if (offset < buffer.Length && buffer[offset] == 0x00)
-            {
-                offset++;
-            }
-            return value;
-        }
-
-        private sealed class SteamCmdResult
-        {
-            public int ExitCode { get; set; }
-            public string StdOut { get; set; }
-            public string StdErr { get; set; }
-        }
-
-        public async Task<ModUpdateAnalysis> AnalyzeModsAsync(
-            string conanExePath,
-            IEnumerable<string> mods,
-            Action<string> log,
-            CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrWhiteSpace(conanExePath) || !File.Exists(conanExePath))
-            {
-                throw new InvalidOperationException("Не найден ConanSandbox.exe. Укажите корректный путь.");
-            }
-
-            var workshopContentRoot = ResolveWorkshopContentRoot(conanExePath);
-            var entries = ParseModEntries(mods);
-            var analysis = new ModUpdateAnalysis();
-
-            if (entries.Count == 0)
-            {
-                return analysis;
-            }
-
-            log("Проверка актуальности модов через Steam Web API...");
-
-            Dictionary<string, WorkshopModMeta> remoteMeta;
-            try
-            {
-                remoteMeta = await LoadWorkshopMetaAsync(entries.Select(x => x.ModId).Distinct().ToList(), cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                log("Не удалось проверить версии через Steam API: " + ex.Message);
-                log("Запрос обновления всех модов.");
-
-                foreach (var entry in entries)
-                {
-                    analysis.Updates.Add(new ModUpdateInfo
-                    {
-                        ModId = entry.ModId,
-                        PakName = entry.PakName,
-                        Status = "Требует проверки",
-                        SizeBytes = 0
-                    });
-                }
-
-                return analysis;
-            }
-
-            foreach (var entry in entries)
-            {
-                var localPath = Path.Combine(workshopContentRoot, entry.ModId, entry.PakName);
-                var exists = File.Exists(localPath);
-                var localUtc = exists ? File.GetLastWriteTimeUtc(localPath) : EpochUtc();
-
-                WorkshopModMeta meta;
-                if (!remoteMeta.TryGetValue(entry.ModId, out meta))
-                {
-                    continue;
-                }
-
-                if (!exists)
-                {
-                    analysis.Updates.Add(new ModUpdateInfo
-                    {
-                        ModId = entry.ModId,
-                        PakName = entry.PakName,
-                        Status = "Отсутствует",
-                        SizeBytes = meta.SizeBytes
-                    });
-                    continue;
-                }
-
-                if (meta.UpdatedUtc > localUtc)
-                {
-                    analysis.Updates.Add(new ModUpdateInfo
-                    {
-                        ModId = entry.ModId,
-                        PakName = entry.PakName,
-                        Status = "Устарел",
-                        SizeBytes = meta.SizeBytes
-                    });
-                }
-            }
-
-            return analysis;
-        }
-
-        public void DisableCinematicIntro(string conanExePath, Action<string> log)
-        {
-            var gameRoot = Path.GetDirectoryName(conanExePath) ?? string.Empty;
-            var defaultGameIniPath = Path.Combine(gameRoot, "ConanSandbox", "Config", "DefaultGame.ini");
-            if (!File.Exists(defaultGameIniPath))
-            {
-                log("DefaultGame.ini не найден, пропускаю отключение интро.");
-                return;
-            }
-
-            var lines = File.ReadAllLines(defaultGameIniPath);
-            var changed = false;
-
-            for (var i = 0; i < lines.Length; i++)
-            {
-                var line = lines[i];
-                if (line.StartsWith("+StartupMovies=", StringComparison.OrdinalIgnoreCase))
-                {
-                    lines[i] = "-" + line.Substring(1);
-                    changed = true;
-                }
-            }
-
-            if (changed)
-            {
-                File.WriteAllLines(defaultGameIniPath, lines);
-                log("Вступительный ролик Conan отключен.");
-            }
-        }
-
-        private static string BuildBatchArguments(string steamLibraryRoot, IEnumerable<string> ids)
-        {
-            var builder = new StringBuilder();
-            builder.Append("+force_install_dir \"");
-            builder.Append(steamLibraryRoot);
-            builder.Append("\" +login anonymous ");
-
-            foreach (var id in ids)
-            {
-                builder.Append("+workshop_download_item ");
-                builder.Append(ConanSteamAppId);
-                builder.Append(" ");
-                builder.Append(id);
-                builder.Append(" validate ");
-            }
-
-            builder.Append("+quit");
-            return builder.ToString();
-        }
-
-        private static DateTime UnixTimeToUtc(long seconds)
-        {
-            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            return epoch.AddSeconds(seconds);
-        }
-
-        private static DateTime GetLocalWorkshopModLastWriteUtc(string workshopContentRoot, string modId)
-        {
-            var modDirectory = Path.Combine(workshopContentRoot, modId);
-            if (!Directory.Exists(modDirectory))
-            {
-                return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            }
-
-            var pakFile = Directory.GetFiles(modDirectory, "*.pak").FirstOrDefault();
-            if (string.IsNullOrWhiteSpace(pakFile) || !File.Exists(pakFile))
-            {
-                return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-            }
-
-            return File.GetLastWriteTimeUtc(pakFile);
-        }
-
-        private async Task<Dictionary<string, WorkshopModMeta>> LoadWorkshopMetaAsync(IList<string> modIds, CancellationToken cancellationToken)
-        {
-            var form = new List<KeyValuePair<string, string>>();
-            for (var i = 0; i < modIds.Count; i++)
-            {
-                form.Add(new KeyValuePair<string, string>("publishedfileids[" + i + "]", modIds[i]));
-            }
-            form.Add(new KeyValuePair<string, string>("itemcount", modIds.Count.ToString()));
-
-            using (var content = new FormUrlEncodedContent(form))
-            using (var response = await HttpClient.PostAsync(WorkshopApiUrl, content, cancellationToken).ConfigureAwait(false))
-            {
-                response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-                var root = JObject.Parse(json);
-                var responseToken = root["response"];
-                var details = responseToken != null ? responseToken["publishedfiledetails"] as JArray : null;
-                if (details == null)
-                {
-                    throw new InvalidOperationException("Steam API вернул неожиданный формат.");
-                }
-
-                var map = new Dictionary<string, WorkshopModMeta>(StringComparer.Ordinal);
-                foreach (var mod in details)
-                {
-                    var modId = mod["publishedfileid"] != null ? mod["publishedfileid"].ToString() : string.Empty;
-                    var timeUpdatedRaw = mod["time_updated"] != null ? mod["time_updated"].ToString() : "0";
-                    var sizeRaw = mod["file_size"] != null ? mod["file_size"].ToString() : "0";
-
-                    long timeUpdatedUnix;
-                    long sizeBytes;
-                    if (string.IsNullOrWhiteSpace(modId) || !long.TryParse(timeUpdatedRaw, out timeUpdatedUnix))
-                    {
-                        continue;
-                    }
-
-                    if (!long.TryParse(sizeRaw, out sizeBytes))
-                    {
-                        sizeBytes = 0;
-                    }
-
-                    map[modId] = new WorkshopModMeta
-                    {
-                        UpdatedUtc = UnixTimeToUtc(timeUpdatedUnix),
-                        SizeBytes = sizeBytes
-                    };
-                }
-
-                return map;
-            }
         }
 
         private static List<ModEntry> ParseModEntries(IEnumerable<string> mods)
@@ -1268,11 +1125,7 @@ namespace RealmLauncher.Services
 
                 var modId = parts[0].Trim();
                 var pakName = parts[1].Trim();
-                if (string.IsNullOrWhiteSpace(modId) || string.IsNullOrWhiteSpace(pakName))
-                {
-                    continue;
-                }
-                if (!modId.All(char.IsDigit))
+                if (string.IsNullOrWhiteSpace(modId) || string.IsNullOrWhiteSpace(pakName) || !modId.All(char.IsDigit))
                 {
                     continue;
                 }
@@ -1281,84 +1134,6 @@ namespace RealmLauncher.Services
             }
 
             return entries;
-        }
-
-        private static DateTime EpochUtc()
-        {
-            return new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        }
-
-        private static void TrySetLastConnected(string conanExePath, string serverIp)
-        {
-            try
-            {
-                var sandboxDirectory = ResolveConanSandboxDirectory(conanExePath);
-                var gameIniPath = Path.Combine(sandboxDirectory, "Saved", "Config", "WindowsNoEditor", "Game.ini");
-                if (!File.Exists(gameIniPath))
-                {
-                    return;
-                }
-
-                var lines = File.ReadAllLines(gameIniPath).ToList();
-                var hasLastConnected = false;
-                var hasStartedListenServerSession = false;
-
-                for (var i = 0; i < lines.Count; i++)
-                {
-                    if (lines[i].StartsWith("LastConnected=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        lines[i] = "LastConnected=" + serverIp;
-                        hasLastConnected = true;
-                    }
-                    else if (lines[i].StartsWith("StartedListenServerSession=", StringComparison.OrdinalIgnoreCase))
-                    {
-                        lines[i] = "StartedListenServerSession=False";
-                        hasStartedListenServerSession = true;
-                    }
-                }
-
-                if (!hasLastConnected)
-                {
-                    lines.Add("LastConnected=" + serverIp);
-                }
-
-                if (!hasStartedListenServerSession)
-                {
-                    lines.Add("StartedListenServerSession=False");
-                }
-
-                File.WriteAllLines(gameIniPath, lines);
-            }
-            catch
-            {
-                // Ничего не делаем: игра всё равно будет запущена, даже если не удалось обновить Game.ini
-            }
-        }
-
-        private static string ResolvePreferredLaunchExe(string conanExePath)
-        {
-            var gameRoot = Path.GetDirectoryName(conanExePath) ?? string.Empty;
-            var binWin64 = Path.Combine(gameRoot, "ConanSandbox", "Binaries", "Win64");
-            var directExe = Path.Combine(binWin64, "ConanSandbox.exe");
-            var battleyeExe = Path.Combine(binWin64, "ConanSandbox_BE.exe");
-
-            if (File.Exists(directExe))
-            {
-                return directExe;
-            }
-
-            if (File.Exists(battleyeExe))
-            {
-                return battleyeExe;
-            }
-
-            return conanExePath;
-        }
-
-        private sealed class WorkshopModMeta
-        {
-            public DateTime UpdatedUtc { get; set; }
-            public long SizeBytes { get; set; }
         }
 
         private sealed class ModEntry

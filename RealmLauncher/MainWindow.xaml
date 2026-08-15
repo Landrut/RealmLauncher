@@ -15,6 +15,28 @@
         Foreground="{DynamicResource TextPrimaryBrush}"
         Background="Transparent">
 
+    <Window.Resources>
+        <Style x:Key="SpinnerTriggerStyle" TargetType="Ellipse">
+            <Style.Triggers>
+                <Trigger Property="IsVisible" Value="True">
+                    <Trigger.EnterActions>
+                        <BeginStoryboard x:Name="SpinStory">
+                            <Storyboard>
+                                <DoubleAnimation Storyboard.TargetProperty="RenderTransform.(RotateTransform.Angle)"
+                                                 From="0" To="360"
+                                                 Duration="0:0:1.1"
+                                                 RepeatBehavior="Forever"/>
+                            </Storyboard>
+                        </BeginStoryboard>
+                    </Trigger.EnterActions>
+                    <Trigger.ExitActions>
+                        <StopStoryboard BeginStoryboardName="SpinStory"/>
+                    </Trigger.ExitActions>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
     <Border x:Name="WindowShell"
             CornerRadius="16"
             Background="{DynamicResource WindowBackgroundBrush}"
@@ -121,48 +143,273 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="18"/>
-                            <ColumnDefinition Width="398"/>
+                            <ColumnDefinition Width="404"/>
                         </Grid.ColumnDefinitions>
 
                         <Border Grid.Column="0" Style="{DynamicResource CardStyle}">
-                            <Grid Margin="18,15,18,16">
+                            <Grid Margin="18,14,18,16">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
 
                                 <Grid Grid.Row="0" Margin="0,0,0,12">
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="Новости обновлений" Style="{DynamicResource PageTitleStyle}" FontSize="21"/>
-                                        <TextBlock x:Name="txtNewsSubtitle"
-                                                   Margin="0,2,0,0"
-                                                   Text="Свежее из мира REALM RP"
-                                                   Style="{DynamicResource HintTextStyle}"/>
-                                    </StackPanel>
-                                    <Button x:Name="btnRefreshNews"
-                                            HorizontalAlignment="Right"
+                                    <Border HorizontalAlignment="Left"
                                             VerticalAlignment="Center"
-                                            Height="32"
-                                            Padding="14,0"
-                                            Content="Обновить"
-                                            ToolTip="Перезагрузить ленту новостей"
-                                            Style="{DynamicResource SecondaryButtonStyle}"
-                                            Click="BtnRefreshNews_OnClick"/>
+                                            CornerRadius="12"
+                                            Padding="3"
+                                            Background="{DynamicResource SurfaceAltBrush}"
+                                            BorderBrush="{DynamicResource StrokeBrush}"
+                                            BorderThickness="1">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button x:Name="btnTabNews"
+                                                    Content="Новости"
+                                                    Height="32"
+                                                    Padding="16,0"
+                                                    FontSize="13"
+                                                    Style="{DynamicResource NavButtonStyle}"
+                                                    Click="BtnTabNews_OnClick"/>
+                                            <Button x:Name="btnTabLog"
+                                                    Content="Журнал"
+                                                    Height="32"
+                                                    Margin="3,0,0,0"
+                                                    Padding="16,0"
+                                                    FontSize="13"
+                                                    Style="{DynamicResource NavButtonStyle}"
+                                                    Click="BtnTabLog_OnClick"/>
+                                            <Button x:Name="btnTabMods"
+                                                    Content="Моды"
+                                                    Height="32"
+                                                    Margin="3,0,0,0"
+                                                    Padding="16,0"
+                                                    FontSize="13"
+                                                    Style="{DynamicResource NavButtonStyle}"
+                                                    Click="BtnTabMods_OnClick"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <StackPanel Orientation="Horizontal"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Center">
+                                        <Ellipse x:Name="spinnerPanel"
+                                                 Width="15" Height="15"
+                                                 Margin="0,0,12,0"
+                                                 Visibility="Collapsed"
+                                                 Stroke="{DynamicResource AccentBrush}"
+                                                 StrokeThickness="2"
+                                                 StrokeDashArray="3 2.6"
+                                                 StrokeDashCap="Round"
+                                                 RenderTransformOrigin="0.5,0.5"
+                                                 Style="{StaticResource SpinnerTriggerStyle}">
+                                            <Ellipse.RenderTransform>
+                                                <RotateTransform Angle="0"/>
+                                            </Ellipse.RenderTransform>
+                                        </Ellipse>
+
+                                        <Button x:Name="btnRefreshNews"
+                                                Height="32"
+                                                Padding="14,0"
+                                                Content="Обновить"
+                                                ToolTip="Перезагрузить ленту новостей"
+                                                Style="{DynamicResource SecondaryButtonStyle}"
+                                                Click="BtnRefreshNews_OnClick"/>
+                                        <Button x:Name="btnClearLog"
+                                                Height="32"
+                                                Padding="14,0"
+                                                Content="Очистить"
+                                                Visibility="Collapsed"
+                                                Style="{DynamicResource SecondaryButtonStyle}"
+                                                Click="BtnClearLog_OnClick"/>
+                                        <Button x:Name="btnCheckMods"
+                                                Height="32"
+                                                Padding="14,0"
+                                                Content="Проверить моды"
+                                                ToolTip="Спросить Steam, что нужно докачать — без запуска игры"
+                                                Visibility="Collapsed"
+                                                Style="{DynamicResource SecondaryButtonStyle}"
+                                                Click="BtnCheckMods_OnClick"/>
+                                    </StackPanel>
                                 </Grid>
 
                                 <Border Grid.Row="1" Style="{DynamicResource WellStyle}">
-                                    <RichTextBox x:Name="rtbNewsBox"
-                                                 Margin="6,8,4,8"
-                                                 IsReadOnly="True"
-                                                 IsDocumentEnabled="True"
-                                                 VerticalScrollBarVisibility="Auto"
-                                                 HorizontalScrollBarVisibility="Disabled"
-                                                 BorderThickness="0"
-                                                 Background="Transparent"
-                                                 Foreground="{DynamicResource TextSecondaryBrush}"
-                                                 SelectionBrush="{DynamicResource AccentBrush}"
-                                                 FontSize="13.2"
-                                                 Padding="8,4"/>
+                                    <Grid>
+                                        <RichTextBox x:Name="rtbNewsBox"
+                                                     Margin="6,8,4,8"
+                                                     IsReadOnly="True"
+                                                     IsDocumentEnabled="True"
+                                                     VerticalScrollBarVisibility="Auto"
+                                                     HorizontalScrollBarVisibility="Disabled"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     Foreground="{DynamicResource TextSecondaryBrush}"
+                                                     SelectionBrush="{DynamicResource AccentBrush}"
+                                                     FontSize="13.2"
+                                                     Padding="8,4"/>
+
+                                        <Grid x:Name="logPane" Visibility="Collapsed">
+                                            <TextBlock x:Name="txtLogPlaceholder"
+                                                       Margin="18,16,18,0"
+                                                       VerticalAlignment="Top"
+                                                       Style="{DynamicResource HintTextStyle}"
+                                                       Text="Здесь появится ход запуска: проверка Steam, синхронизация модов и подключение к серверу."/>
+                                            <TextBox x:Name="txtLogBox" Style="{DynamicResource LogTextBoxStyle}"/>
+                                        </Grid>
+
+                                        <Grid x:Name="modsPane" Visibility="Collapsed">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="*"/>
+                                            </Grid.RowDefinitions>
+
+                                            <Border x:Name="devPanel"
+                                                    Grid.Row="0"
+                                                    Visibility="Collapsed"
+                                                    Margin="8,8,6,0"
+                                                    CornerRadius="9"
+                                                    Padding="12,10"
+                                                    Background="{DynamicResource AccentSoftBrush}"
+                                                    BorderBrush="{DynamicResource StrokeStrongBrush}"
+                                                    BorderThickness="1">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <TextBlock Text="РЕЖИМ РАЗРАБОТЧИКА"
+                                                                   VerticalAlignment="Center"
+                                                                   FontSize="10.5"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{DynamicResource AccentBrush}"/>
+                                                        <Button x:Name="btnDevLocalPlay"
+                                                                HorizontalAlignment="Right"
+                                                                Height="30"
+                                                                Padding="14,0"
+                                                                ToolTip="Записать modlist.txt и запустить игру без подключения к серверу"
+                                                                Style="{DynamicResource SecondaryButtonStyle}"
+                                                                Click="BtnDevLocalPlay_OnClick">
+                                                            <StackPanel Orientation="Horizontal">
+                                                                <Path Width="9" Height="10"
+                                                                      Stretch="Uniform"
+                                                                      VerticalAlignment="Center"
+                                                                      Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                                      Data="M 0 0 L 8 5 L 0 10 Z"/>
+                                                                <TextBlock Text="Локальный запуск" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                        </Button>
+                                                    </Grid>
+
+                                                    <Grid Margin="0,9,0,0">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*"/>
+                                                            <ColumnDefinition Width="8"/>
+                                                            <ColumnDefinition Width="Auto"/>
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox x:Name="txtDevModId"
+                                                                 Grid.Column="0"
+                                                                 Height="34"
+                                                                 FontSize="12.5"
+                                                                 Style="{DynamicResource TextInputStyle}"
+                                                                 ToolTip="ID мода или ссылка на страницу Workshop"/>
+                                                        <Button x:Name="btnDevAddMod"
+                                                                Grid.Column="2"
+                                                                Height="34"
+                                                                Padding="18,0"
+                                                                Content="Добавить мод"
+                                                                Style="{DynamicResource SecondaryButtonStyle}"
+                                                                Click="BtnDevAddMod_OnClick"/>
+                                                    </Grid>
+
+                                                    <StackPanel Orientation="Horizontal" Margin="0,9,0,0">
+                                                        <TextBlock Text="ПОРЯДОК"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,8,0"
+                                                                   FontSize="10"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                                                        <Button x:Name="btnDevUp" Width="34" Height="30" Margin="0,0,4,0"
+                                                                Padding="0" ToolTip="Поднять выбранный мод"
+                                                                Style="{DynamicResource SecondaryButtonStyle}"
+                                                                Click="BtnDevUp_OnClick">
+                                                            <Path Width="11" Height="11" Stretch="Uniform"
+                                                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                                  StrokeThickness="1.7"
+                                                                  StrokeStartLineCap="Round"
+                                                                  StrokeEndLineCap="Round"
+                                                                  StrokeLineJoin="Round"
+                                                                  Data="M 0 5 L 5 0 L 10 5 M 5 0 L 5 11"/>
+                                                        </Button>
+                                                        <Button x:Name="btnDevDown" Width="34" Height="30"
+                                                                Padding="0" ToolTip="Опустить выбранный мод"
+                                                                Style="{DynamicResource SecondaryButtonStyle}"
+                                                                Click="BtnDevDown_OnClick">
+                                                            <Path Width="11" Height="11" Stretch="Uniform"
+                                                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                                  StrokeThickness="1.7"
+                                                                  StrokeStartLineCap="Round"
+                                                                  StrokeEndLineCap="Round"
+                                                                  StrokeLineJoin="Round"
+                                                                  Data="M 0 6 L 5 11 L 10 6 M 5 0 L 5 11"/>
+                                                        </Button>
+
+                                                        <Rectangle Width="1" Height="22" Margin="14,0"
+                                                                   Fill="{DynamicResource StrokeStrongBrush}"/>
+
+                                                        <TextBlock Text="СПИСОК"
+                                                                   VerticalAlignment="Center"
+                                                                   Margin="0,0,8,0"
+                                                                   FontSize="10"
+                                                                   FontWeight="Bold"
+                                                                   Foreground="{DynamicResource TextMutedBrush}"/>
+                                                        <Button x:Name="btnDevImport" Height="30" Padding="13,0" Margin="0,0,4,0"
+                                                                Content="Импорт" ToolTip="Загрузить список модов из файла"
+                                                                Style="{DynamicResource SecondaryButtonStyle}"
+                                                                Click="BtnDevImport_OnClick"/>
+                                                        <Button x:Name="btnDevExport" Height="30" Padding="13,0" Margin="0,0,4,0"
+                                                                Content="Экспорт" ToolTip="Сохранить список модов в файл для передачи"
+                                                                Style="{DynamicResource SecondaryButtonStyle}"
+                                                                Click="BtnDevExport_OnClick"/>
+                                                        <Button x:Name="btnDevServerIds" Height="30" Padding="13,0" Margin="0,0,4,0"
+                                                                Content="Для сервера" ToolTip="Скопировать id через запятую для Dedicated Server Launcher"
+                                                                Style="{DynamicResource SecondaryButtonStyle}"
+                                                                Click="BtnDevServerIds_OnClick"/>
+                                                        <Button x:Name="btnDevOpenModList" Width="34" Height="30"
+                                                                Padding="0"
+                                                                ToolTip="Открыть папку с modlist.txt"
+                                                                Style="{DynamicResource SecondaryButtonStyle}"
+                                                                Click="BtnDevOpenModList_OnClick">
+                                                            <Path Width="14" Height="12" Stretch="Uniform"
+                                                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                                  StrokeThickness="1.4"
+                                                                  StrokeLineJoin="Round"
+                                                                  Data="M 0 2 L 5 2 L 6.5 4 L 14 4 L 14 12 L 0 12 Z"/>
+                                                        </Button>
+                                                    </StackPanel>
+
+                                                    <TextBlock Margin="0,9,0,0"
+                                                               Style="{DynamicResource HintTextStyle}"
+                                                               FontSize="11"
+                                                               Text="Порядок меняется перетаскиванием · modlist.txt переписывается сразу · корзина в строке удаляет мод"/>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <TextBlock x:Name="txtModsPlaceholder"
+                                                       Grid.Row="1"
+                                                       Margin="18,16,18,0"
+                                                       VerticalAlignment="Top"
+                                                       Style="{DynamicResource HintTextStyle}"
+                                                       Text="Список модов появится после нажатия «Запуск игры» — лаунчер спросит Steam, что нужно докачать."/>
+                                            <ListBox x:Name="lstMods"
+                                                     Grid.Row="1"
+                                                     Margin="8,8,6,8"
+                                                     Background="Transparent"
+                                                     BorderThickness="0"
+                                                     AllowDrop="True"
+                                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                     ItemContainerStyle="{DynamicResource ModRowContainerStyle}"
+                                                     ItemTemplate="{DynamicResource ModRowTemplate}"
+                                                     PreviewMouseLeftButtonDown="LstMods_OnPreviewMouseLeftButtonDown"
+                                                     PreviewMouseMove="LstMods_OnPreviewMouseMove"
+                                                     Drop="LstMods_OnDrop"
+                                                     DragOver="LstMods_OnDragOver"/>
+                                        </Grid>
+                                    </Grid>
                                 </Border>
                             </Grid>
                         </Border>
@@ -170,9 +417,9 @@
                         <Grid Grid.Column="2">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="14"/>
+                                <RowDefinition Height="13"/>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="14"/>
+                                <RowDefinition Height="13"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
@@ -204,9 +451,17 @@
                                                    Text="--/--"/>
                                     </Grid>
 
-                                    <Rectangle Height="1"
-                                               Margin="0,13,0,0"
-                                               Fill="{DynamicResource StrokeBrush}"/>
+                                    <Grid x:Name="sparklineHost" Height="52" Margin="0,12,0,0" ClipToBounds="True">
+                                        <TextBlock x:Name="lblSparklineHint"
+                                                   VerticalAlignment="Center"
+                                                   HorizontalAlignment="Center"
+                                                   Style="{DynamicResource HintTextStyle}"
+                                                   FontSize="11.5"
+                                                   Text="История онлайна появится через несколько минут"/>
+                                        <Canvas x:Name="sparklineCanvas" ClipToBounds="True"/>
+                                    </Grid>
+
+                                    <Rectangle Height="1" Margin="0,12,0,0" Fill="{DynamicResource StrokeBrush}"/>
 
                                     <Grid Margin="0,11,0,0">
                                         <TextBlock Text="Steam"
@@ -221,6 +476,14 @@
                                                    Foreground="{DynamicResource TextSecondaryBrush}"
                                                    Text="неизвестно"/>
                                     </Grid>
+
+                                    <ItemsControl x:Name="linksHost" Margin="0,8,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
                                 </StackPanel>
                             </Border>
 
@@ -239,40 +502,48 @@
                                             Margin="0,14,0,0"
                                             Content="ЗАПУСК ИГРЫ"
                                             Style="{DynamicResource PrimaryButtonStyle}"/>
+
+                                    <Button x:Name="btnCancelSync"
+                                            Margin="0,10,0,0"
+                                            Height="38"
+                                            Content="Отменить загрузку"
+                                            Visibility="Collapsed"
+                                            Style="{DynamicResource SecondaryButtonStyle}"
+                                            Click="BtnCancelSync_OnClick"/>
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Row="4" Style="{DynamicResource CardStyle}">
-                                <Grid Margin="18,14,18,16">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
-                                    </Grid.RowDefinitions>
+                            <Border Grid.Row="4" VerticalAlignment="Bottom" Style="{DynamicResource CardStyle}">
+                                <StackPanel Margin="18,14,18,16">
+                                    <TextBlock Text="БЫСТРЫЕ ДЕЙСТВИЯ" Style="{DynamicResource CardTitleStyle}"/>
 
-                                    <Grid Grid.Row="0" Margin="0,0,0,10">
-                                        <TextBlock Text="ЖУРНАЛ" Style="{DynamicResource CardTitleStyle}" VerticalAlignment="Center"/>
-                                        <Button x:Name="btnClearLog"
-                                                HorizontalAlignment="Right"
-                                                VerticalAlignment="Center"
-                                                Height="26"
-                                                Padding="10,0"
-                                                FontSize="11.5"
-                                                Content="Очистить"
+                                    <Grid Margin="0,11,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="8"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button x:Name="btnOpenGameFolder"
+                                                Grid.Column="0"
+                                                Height="34"
+                                                Content="Папка игры"
                                                 Style="{DynamicResource SecondaryButtonStyle}"
-                                                Click="BtnClearLog_OnClick"/>
+                                                Click="BtnOpenGameFolder_OnClick"/>
+                                        <Button x:Name="btnOpenLogs"
+                                                Grid.Column="2"
+                                                Height="34"
+                                                Content="Логи игры"
+                                                Style="{DynamicResource SecondaryButtonStyle}"
+                                                Click="BtnOpenLogs_OnClick"/>
                                     </Grid>
 
-                                    <Border Grid.Row="1" Style="{DynamicResource WellStyle}">
-                                        <Grid>
-                                            <TextBlock x:Name="txtLogPlaceholder"
-                                                       Margin="16,14,16,0"
-                                                       VerticalAlignment="Top"
-                                                       Style="{DynamicResource HintTextStyle}"
-                                                       Text="Здесь появится ход запуска: проверка Steam, синхронизация модов и подключение к серверу."/>
-                                            <TextBox x:Name="txtLogBox" Style="{DynamicResource LogTextBoxStyle}"/>
-                                        </Grid>
-                                    </Border>
-                                </Grid>
+                                    <Button x:Name="btnCopyLog"
+                                            Margin="0,8,0,0"
+                                            Height="34"
+                                            Content="Скопировать журнал"
+                                            Style="{DynamicResource SecondaryButtonStyle}"
+                                            Click="BtnCopyLog_OnClick"/>
+                                </StackPanel>
                             </Border>
                         </Grid>
                     </Grid>
@@ -284,6 +555,7 @@
                     <Border BorderBrush="{DynamicResource StrokeBrush}" BorderThickness="0,1,0,0">
                         <Grid Margin="20,0,20,0">
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="18"/>
                                 <ColumnDefinition Width="*"/>
@@ -298,18 +570,51 @@
                                     ToolTip="Открыть приглашение в Discord"
                                     Style="{DynamicResource AccentGhostButtonStyle}"/>
 
-                            <TextBlock x:Name="lblStatus"
-                                       Grid.Column="2"
-                                       VerticalAlignment="Center"
-                                       FontSize="12.5"
-                                       Foreground="{DynamicResource TextSecondaryBrush}"
-                                       Text="Ожидание..."
-                                       TextTrimming="CharacterEllipsis"
-                                       ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                            <Button x:Name="btnWebsite"
+                                    Grid.Column="1"
+                                    Margin="8,0,0,0"
+                                    VerticalAlignment="Center"
+                                    Content="Сайт"
+                                    ToolTip="Открыть realm-rp.com"
+                                    Style="{DynamicResource AccentGhostButtonStyle}"
+                                    Click="BtnWebsite_OnClick"/>
 
-                            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Ellipse x:Name="spinnerFooter"
+                                         Width="14" Height="14"
+                                         Margin="0,0,9,0"
+                                         VerticalAlignment="Center"
+                                         Visibility="Collapsed"
+                                         Stroke="{DynamicResource AccentBrush}"
+                                         StrokeThickness="2"
+                                         StrokeDashArray="3 2.6"
+                                         StrokeDashCap="Round"
+                                         RenderTransformOrigin="0.5,0.5"
+                                         Style="{StaticResource SpinnerTriggerStyle}">
+                                    <Ellipse.RenderTransform>
+                                        <RotateTransform Angle="0"/>
+                                    </Ellipse.RenderTransform>
+                                </Ellipse>
+
+                                <TextBlock x:Name="lblStatus"
+                                           VerticalAlignment="Center"
+                                           FontSize="12.5"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Text="Ожидание..."
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock x:Name="lblTransferRate"
+                                           Margin="0,0,12,0"
+                                           VerticalAlignment="Center"
+                                           FontSize="12"
+                                           FontWeight="Medium"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           Text=""/>
                                 <ProgressBar x:Name="progressMods"
-                                             Width="240"
+                                             Width="190"
                                              VerticalAlignment="Center"
                                              Minimum="0"
                                              Maximum="1000"

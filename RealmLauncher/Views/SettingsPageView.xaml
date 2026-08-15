@@ -19,39 +19,58 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="4,4,4,4">
                 <StackPanel Margin="18,13,14,16">
                     <TextBlock Text="Настройки" Style="{DynamicResource PageTitleStyle}" FontSize="21"/>
-                    <TextBlock Text="Пути, Steam и обновления лаунчера"
+                    <TextBlock Text="Игра, Steam и оформление лаунчера"
                                Margin="0,2,0,0"
                                Style="{DynamicResource HintTextStyle}"/>
 
                     <Border Style="{DynamicResource WellStyle}" Margin="0,16,0,0">
                         <StackPanel Margin="16,14,16,16">
                             <TextBlock Text="ИГРА" Style="{DynamicResource CardTitleStyle}"/>
-                            <TextBlock Text="Путь к ConanSandbox.exe"
-                                       Margin="0,10,0,0"
-                                       FontSize="13.5"
-                                       FontWeight="Medium"
-                                       Foreground="{DynamicResource TextPrimaryBrush}"/>
-                            <TextBlock Text="Лаунчер использует его, чтобы найти папку игры, моды и modlist.txt."
+
+                            <Grid Margin="0,10,0,0">
+                                <TextBlock Text="Путь к Conan Exiles"
+                                           VerticalAlignment="Center"
+                                           FontSize="13.5"
+                                           FontWeight="Medium"
+                                           Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                <Border x:Name="branchBadge" x:FieldModifier="public"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        CornerRadius="5"
+                                        Padding="7,2"
+                                        Visibility="Collapsed"
+                                        Background="{DynamicResource AccentSoftBrush}">
+                                    <TextBlock x:Name="txtBranchBadge" x:FieldModifier="public"
+                                               FontSize="10.5"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource AccentBrush}"
+                                               Text="ENHANCED"/>
+                                </Border>
+                            </Grid>
+
+                            <TextBlock x:Name="txtGameHint" x:FieldModifier="public"
+                                       Text="Лаунчер находит игру через Steam автоматически."
                                        Margin="0,4,0,0"
                                        Style="{DynamicResource HintTextStyle}"/>
 
-                            <Grid Margin="0,10,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox x:Name="txtConanExe" x:FieldModifier="public"
-                                         Grid.Column="0"
-                                         Style="{DynamicResource PathDisplayStyle}"
-                                         ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
-                                <Button x:Name="btnBrowseConanExe" x:FieldModifier="public"
-                                        Grid.Column="2"
-                                        Height="38"
-                                        Padding="18,0"
-                                        Content="Обзор"
+                            <TextBox x:Name="txtConanExe" x:FieldModifier="public"
+                                     Margin="0,10,0,0"
+                                     Style="{DynamicResource PathDisplayStyle}"
+                                     ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button x:Name="btnDetectGame" x:FieldModifier="public"
+                                        Height="36"
+                                        Padding="16,0"
+                                        Content="Найти автоматически"
                                         Style="{DynamicResource SecondaryButtonStyle}"/>
-                            </Grid>
+                                <Button x:Name="btnBrowseConanExe" x:FieldModifier="public"
+                                        Height="36"
+                                        Margin="8,0,0,0"
+                                        Padding="16,0"
+                                        Content="Указать вручную"
+                                        Style="{DynamicResource SecondaryButtonStyle}"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
@@ -96,7 +115,6 @@
                                     Style="{DynamicResource SecondaryButtonStyle}"/>
                         </StackPanel>
                     </Border>
-
                 </StackPanel>
             </ScrollViewer>
         </Border>
@@ -105,22 +123,11 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="4,4,4,4">
                 <StackPanel Margin="18,13,14,16">
                     <TextBlock Text="Дополнительно" Style="{DynamicResource PageTitleStyle}" FontSize="21"/>
-                    <TextBlock Text="Опции, которые лаунчер применяет перед запуском игры"
+                    <TextBlock Text="Как лаунчер ведёт себя при запуске игры и Windows"
                                Margin="0,2,0,0"
                                Style="{DynamicResource HintTextStyle}"/>
 
                     <Border Style="{DynamicResource WellStyle}" Margin="0,16,0,0">
-                        <StackPanel Margin="16,14,16,15">
-                            <CheckBox x:Name="chkDisableIntro" x:FieldModifier="public"
-                                      Style="{DynamicResource RealmToggleStyle}"
-                                      Content="Отключить вступительный ролик"/>
-                            <TextBlock Margin="0,8,54,0"
-                                       Style="{DynamicResource HintTextStyle}"
-                                       Text="Заменяет вступительный ролик Conan Exiles на чёрный экран при загрузке игры."/>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Style="{DynamicResource WellStyle}" Margin="0,12,0,0">
                         <StackPanel Margin="16,14,16,15">
                             <CheckBox x:Name="chkAutoSubscribe" x:FieldModifier="public"
                                       Style="{DynamicResource RealmToggleStyle}"
@@ -134,13 +141,66 @@
 
                     <Border Style="{DynamicResource WellStyle}" Margin="0,12,0,0">
                         <StackPanel Margin="16,14,16,15">
-                            <CheckBox x:Name="chkBoostLoading" x:FieldModifier="public"
+                            <CheckBox x:Name="chkBattlEye" x:FieldModifier="public"
                                       Style="{DynamicResource RealmToggleStyle}"
-                                      IsChecked="True"
-                                      Content="Ускорить внутриигровые загрузки"/>
+                                      Content="Запускать с BattlEye"/>
                             <TextBlock Margin="0,8,54,0"
                                        Style="{DynamicResource HintTextStyle}"
-                                       Text="Меняет ConfiguredInternetSpeed и ConfiguredLanSpeed в BaseEngine.ini: 250000 (вкл) / 10000 (выкл). Существенно ускоряет прогрузку локаций."/>
+                                       Text="Сейчас сервер не требует BattlEye. Включайте, только если это понадобится."/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource WellStyle}" Margin="0,12,0,0">
+                        <StackPanel Margin="16,14,16,15">
+                            <CheckBox x:Name="chkDiscordStatus" x:FieldModifier="public"
+                                      Style="{DynamicResource RealmToggleStyle}"
+                                      IsChecked="True"
+                                      Content="Показывать статус в Discord"/>
+                            <TextBlock Margin="0,8,54,0"
+                                       Style="{DynamicResource HintTextStyle}"
+                                       Text="Друзья увидят в вашем профиле Discord, что вы играете на REALM RolePlay."/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource WellStyle}" Margin="0,12,0,0">
+                        <StackPanel Margin="16,14,16,15">
+                            <CheckBox x:Name="chkNotifyOnline" x:FieldModifier="public"
+                                      Style="{DynamicResource RealmToggleStyle}"
+                                      IsChecked="True"
+                                      Content="Сообщать, когда сервер поднялся"/>
+                            <TextBlock Margin="0,8,54,0"
+                                       Style="{DynamicResource HintTextStyle}"
+                                       Text="Если сервер был недоступен и снова вернулся в онлайн, лаунчер покажет уведомление."/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource WellStyle}" Margin="0,12,0,0">
+                        <StackPanel Margin="16,14,16,15">
+                            <CheckBox x:Name="chkAutoStart" x:FieldModifier="public"
+                                      Style="{DynamicResource RealmToggleStyle}"
+                                      Content="Запускать вместе с Windows"/>
+                            <TextBlock Margin="0,8,54,0"
+                                       Style="{DynamicResource HintTextStyle}"
+                                       Text="Лаунчер добавится в автозапуск текущего пользователя."/>
+
+                            <CheckBox x:Name="chkStartMinimized" x:FieldModifier="public"
+                                      Margin="0,14,0,0"
+                                      Style="{DynamicResource RealmToggleStyle}"
+                                      Content="Запускать свёрнутым"/>
+                            <TextBlock Margin="0,8,54,0"
+                                       Style="{DynamicResource HintTextStyle}"
+                                       Text="Окно не будет открываться на весь экран при автозапуске."/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource WellStyle}" Margin="0,12,0,0">
+                        <StackPanel Margin="16,14,16,15">
+                            <CheckBox x:Name="chkDeveloperMode" x:FieldModifier="public"
+                                      Style="{DynamicResource RealmToggleStyle}"
+                                      Content="Режим разработчика"/>
+                            <TextBlock Margin="0,8,54,0"
+                                       Style="{DynamicResource HintTextStyle}"
+                                       Text="Открывает во вкладке «Моды» ручное добавление модов, изменение порядка загрузки, импорт и экспорт списка и локальный запуск игры. Обычным игрокам не нужен."/>
                         </StackPanel>
                     </Border>
 
@@ -149,7 +209,7 @@
                             <TextBlock Text="ПАМЯТКА" Style="{DynamicResource CardTitleStyle}"/>
                             <TextBlock Margin="0,10,0,0"
                                        Style="{DynamicResource HintTextStyle}"
-                                       Text="Изменения сохраняются автоматически. Перед первым запуском укажите путь к ConanSandbox.exe и запустите Steam."/>
+                                       Text="Настройки сохраняются автоматически. Лаунчер прописывает адрес сервера в конфиг игры и запускает её сразу с подключением — заходить через список серверов не нужно."/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
