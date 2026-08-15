@@ -20,7 +20,8 @@ namespace RealmLauncher.Services
             "api.steampowered.com",
             "steamcdn-a.akamaihd.net",
             "discord.gg",
-            "discord.com"
+            "discord.com",
+            "cdnjs.cloudflare.com"
         };
 
         public static HashSet<string> BuildAllowedHosts()

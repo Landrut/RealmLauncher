@@ -1,0 +1,51 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+
+    <sys:String x:Key="ThemeKey">Bronze</sys:String>
+
+    <LinearGradientBrush x:Key="WindowBackgroundBrush" StartPoint="0,0" EndPoint="0.35,1">
+        <GradientStop Color="#181209" Offset="0"/>
+        <GradientStop Color="#120E08" Offset="0.55"/>
+        <GradientStop Color="#0B0805" Offset="1"/>
+    </LinearGradientBrush>
+
+    <RadialGradientBrush x:Key="WindowGlowBrush" Center="0.84,0.06" GradientOrigin="0.84,0.06" RadiusX="0.85" RadiusY="0.95">
+        <GradientStop Color="#4DC1802F" Offset="0"/>
+        <GradientStop Color="#24704A1E" Offset="0.45"/>
+        <GradientStop Color="#00120E08" Offset="1"/>
+    </RadialGradientBrush>
+
+    <SolidColorBrush x:Key="WindowBorderBrush" Color="#5A422A"/>
+
+    <SolidColorBrush x:Key="HeaderBrush" Color="#591C150C"/>
+    <SolidColorBrush x:Key="FooterBrush" Color="#59120D07"/>
+
+    <SolidColorBrush x:Key="SurfaceBrush" Color="#B31B150D"/>
+    <SolidColorBrush x:Key="SurfaceAltBrush" Color="#8C100C07"/>
+    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#4D3A2B18"/>
+
+    <SolidColorBrush x:Key="StrokeBrush" Color="#3A2C1B"/>
+    <SolidColorBrush x:Key="StrokeStrongBrush" Color="#5C452C"/>
+
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F6ECD9"/>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="#C3B091"/>
+    <SolidColorBrush x:Key="TextMutedBrush" Color="#8C7A5D"/>
+
+    <Color x:Key="AccentColor">#D9903F</Color>
+    <SolidColorBrush x:Key="AccentBrush" Color="#D9903F"/>
+    <SolidColorBrush x:Key="AccentHoverBrush" Color="#EDA95C"/>
+    <SolidColorBrush x:Key="AccentPressedBrush" Color="#B4742A"/>
+    <SolidColorBrush x:Key="AccentSoftBrush" Color="#3355391E"/>
+    <SolidColorBrush x:Key="OnAccentBrush" Color="#1C1206"/>
+
+    <SolidColorBrush x:Key="SuccessBrush" Color="#7FC98A"/>
+    <SolidColorBrush x:Key="WarningBrush" Color="#F5C451"/>
+    <SolidColorBrush x:Key="DangerBrush" Color="#E8776B"/>
+
+    <SolidColorBrush x:Key="ScrollThumbBrush" Color="#5C452C"/>
+    <SolidColorBrush x:Key="ScrollThumbHoverBrush" Color="#7C5F3A"/>
+
+    <DropShadowEffect x:Key="AccentGlowEffect" Color="#D9903F" BlurRadius="22" ShadowDepth="0" Opacity="0.4"/>
+
+</ResourceDictionary>

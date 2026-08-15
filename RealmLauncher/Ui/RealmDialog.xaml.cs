@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 
@@ -24,10 +24,16 @@ namespace RealmLauncher.Ui
 
         public static MessageBoxResult Show(Window owner, string title, string message, RealmDialogButtons buttons, RealmDialogType type)
         {
-            var dialog = new RealmDialog(title, message, buttons, type)
+            var dialog = new RealmDialog(title, message, buttons, type);
+
+            if (owner != null && owner.IsLoaded && owner.IsVisible)
             {
-                Owner = owner
-            };
+                dialog.Owner = owner;
+            }
+            else
+            {
+                dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            }
 
             dialog.ShowDialog();
             return dialog._result;
@@ -42,94 +48,105 @@ namespace RealmLauncher.Ui
 
             ApplyDialogType(type);
             ApplyButtons(buttons);
-            ApplyCompactSize(message, buttons);
 
             KeyDown += RealmDialog_KeyDown;
-        }
-
-        private void ApplyCompactSize(string message, RealmDialogButtons buttons)
-        {
-            var text = message ?? string.Empty;
-            var lineCount = text.Split(new[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries).Length;
-            if (lineCount <= 0) lineCount = 1;
-
-            var estimated = 260 + (lineCount * 11);
-            if (buttons == RealmDialogButtons.YesNo)
-            {
-                estimated += 24;
-            }
-
-            if (estimated < 260) estimated = 260;
-            if (estimated > 560) estimated = 560;
-
-            Height = estimated;
         }
 
         private void RealmDialog_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape)
             {
-                _result = MessageBoxResult.Cancel;
+                _result = btnYes.Visibility == Visibility.Visible ? MessageBoxResult.No : MessageBoxResult.Cancel;
                 Close();
             }
         }
 
         private void ApplyButtons(RealmDialogButtons buttons)
         {
-            if (buttons == RealmDialogButtons.YesNo)
+            var yesNo = buttons == RealmDialogButtons.YesNo;
+
+            btnOk.Visibility = yesNo ? Visibility.Collapsed : Visibility.Visible;
+            btnOk.IsDefault = !yesNo;
+
+            btnYes.Visibility = yesNo ? Visibility.Visible : Visibility.Collapsed;
+            btnYes.IsDefault = yesNo;
+
+            btnNo.Visibility = yesNo ? Visibility.Visible : Visibility.Collapsed;
+            btnNo.IsCancel = yesNo;
+
+            Loaded += (s, e) =>
             {
-                btnOk.Visibility = Visibility.Collapsed;
-                btnYes.Visibility = Visibility.Visible;
-                btnNo.Visibility = Visibility.Visible;
-                btnYes.Focus();
-            }
-            else
-            {
-                btnOk.Visibility = Visibility.Visible;
-                btnYes.Visibility = Visibility.Collapsed;
-                btnNo.Visibility = Visibility.Collapsed;
-                btnOk.Focus();
-            }
+                if (yesNo)
+                {
+                    btnYes.Focus();
+                }
+                else
+                {
+                    btnOk.Focus();
+                }
+            };
         }
 
         private void ApplyDialogType(RealmDialogType type)
         {
+            string accentKey;
+            string glyph;
+
             switch (type)
             {
                 case RealmDialogType.Warning:
-                    iconCircle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#9A6A16"));
-                    iconCircle.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FFD37A"));
-                    txtIcon.Text = "!";
+                    accentKey = "WarningBrush";
+                    glyph = "!";
                     break;
                 case RealmDialogType.Error:
-                    iconCircle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8C2C33"));
-                    iconCircle.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF97A1"));
-                    txtIcon.Text = "×";
+                    accentKey = "DangerBrush";
+                    glyph = "!";
                     break;
                 case RealmDialogType.Question:
-                    iconCircle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E66C4"));
-                    iconCircle.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#88B6FF"));
-                    txtIcon.Text = "?";
+                    accentKey = "AccentBrush";
+                    glyph = "?";
                     break;
                 default:
-                    iconCircle.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2E66C4"));
-                    iconCircle.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#88B6FF"));
-                    txtIcon.Text = "i";
+                    accentKey = "AccentBrush";
+                    glyph = "i";
                     break;
             }
+
+            txtIcon.Text = glyph;
+
+            var accent = TryFindResource(accentKey) as SolidColorBrush;
+            if (accent == null)
+            {
+                return;
+            }
+
+            iconCircle.BorderBrush = accent;
+            txtIcon.Foreground = accent;
+
+            var tint = accent.Color;
+            tint.A = 0x33;
+            iconCircle.Background = new SolidColorBrush(tint);
         }
 
         private void BtnClose_OnClick(object sender, RoutedEventArgs e)
         {
-            _result = MessageBoxResult.Cancel;
+            _result = btnYes.Visibility == Visibility.Visible ? MessageBoxResult.No : MessageBoxResult.Cancel;
             Close();
         }
 
         private void TitleBar_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.ChangedButton == MouseButton.Left)
+            if (e.ChangedButton != MouseButton.Left)
+            {
+                return;
+            }
+
+            try
             {
                 DragMove();
+            }
+            catch (System.InvalidOperationException)
+            {
             }
         }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -27,7 +27,7 @@ namespace RealmLauncher.Models
         {
             AutomaticallySubscribeToWorkshopMods = true;
             BoostIngameLoading = true;
-            UiTheme = "Blue";
+            UiTheme = "Bronze";
         }
 
         public static string SettingsFilePath
@@ -35,25 +35,83 @@ namespace RealmLauncher.Models
             get { return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "launcher.settings.json"); }
         }
 
+        public static string FallbackSettingsFilePath
+        {
+            get
+            {
+                return Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "RealmLauncher",
+                    "launcher.settings.json");
+            }
+        }
+
         public static LauncherSettings Load()
         {
-            if (!File.Exists(SettingsFilePath))
-            {
-                return new LauncherSettings();
-            }
+            return TryLoadFrom(SettingsFilePath)
+                   ?? TryLoadFrom(FallbackSettingsFilePath)
+                   ?? new LauncherSettings();
+        }
 
-            var json = File.ReadAllText(SettingsFilePath);
-            return JsonConvert.DeserializeObject<LauncherSettings>(json) ?? new LauncherSettings();
+        private static LauncherSettings TryLoadFrom(string path)
+        {
+            try
+            {
+                if (!File.Exists(path))
+                {
+                    return null;
+                }
+
+                var json = File.ReadAllText(path);
+                return JsonConvert.DeserializeObject<LauncherSettings>(json);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public void Save()
+        {
+            string error;
+            TrySave(out error);
+        }
+
+        public bool TrySave(out string error)
         {
             LegacyServerPassword = null;
             var json = JsonConvert.SerializeObject(
                 this,
                 Formatting.Indented,
                 new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
-            File.WriteAllText(SettingsFilePath, json);
+
+            if (TryWrite(SettingsFilePath, json, out error))
+            {
+                return true;
+            }
+
+            return TryWrite(FallbackSettingsFilePath, json, out error);
+        }
+
+        private static bool TryWrite(string path, string json, out string error)
+        {
+            try
+            {
+                var directory = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                File.WriteAllText(path, json);
+                error = null;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
         }
 
         public string GetServerPassword()

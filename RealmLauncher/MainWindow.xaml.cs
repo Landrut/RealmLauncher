@@ -1,9 +1,11 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using RealmLauncher.Models;
 using RealmLauncher.Services;
+using RealmLauncher.Theme;
 using RealmLauncher.Ui;
-using RealmLauncher.Views;
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Globalization;
@@ -38,14 +40,19 @@ namespace RealmLauncher
         private const double StageModlistDone = 0.96;
         private const double StageLaunched = 1.00;
 
+        private const int MaxLogLines = 400;
+
+        private static readonly TimeSpan ServerConfigCacheTtl = TimeSpan.FromMinutes(10);
+
         private readonly LauncherService _launcherService = new LauncherService();
         private readonly LauncherUpdateService _updateService = new LauncherUpdateService();
-        private readonly System.Collections.Generic.HashSet<string> _allowedHosts = AppRuntimeConfig.BuildAllowedHosts();
+        private readonly HashSet<string> _allowedHosts = AppRuntimeConfig.BuildAllowedHosts();
         private readonly HttpClient _httpClient = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(12)
         };
-        private static readonly System.Collections.Generic.Dictionary<string, string> EmojiIconUrls = new System.Collections.Generic.Dictionary<string, string>(StringComparer.Ordinal)
+
+        private static readonly Dictionary<string, string> EmojiIconUrls = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             { "📢", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f4e2.png" },
             { "🔥", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f525.png" },
@@ -72,108 +79,130 @@ namespace RealmLauncher
             { "ℹ️", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2139.png" },
             { "ℹ", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2139.png" }
         };
+
+        private static readonly Dictionary<string, BitmapImage> EmojiImageCache =
+            new Dictionary<string, BitmapImage>(StringComparer.Ordinal);
+
+        private readonly List<string> _logLines = new List<string>();
+
         private LauncherSettings _settings;
         private CancellationTokenSource _cts;
         private readonly DispatcherTimer _serverStatusTimer;
         private readonly DispatcherTimer _modSyncAnimationTimer;
         private bool _isRefreshingServerStatus;
-        private bool _isApplyingTheme;
-        private string _serverStatusText = "проверка...";
-        private string _serverPlayersText = "Игроки: --/--";
-        private Brush _serverStatusBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4C542"));
-        private ThemePalette _themePalette;
+        private bool _isLoadingSettings;
+        private bool _isClosing;
+
+        private string _rawNews;
+        private ServerConfig _cachedServerConfig;
+        private DateTime _cachedServerConfigUtc = DateTime.MinValue;
+
         private bool _isModSyncStatusActive;
         private int _modSyncDone;
         private int _modSyncTotal;
         private string _modSyncCurrentModName = "мод";
         private int _modSyncDotPhase;
 
-        private TextBox txtConfigUrl => txtConfigUrlInput;
-        private PasswordBox txtServerPassword => txtServerPasswordInput;
-        private RichTextBox txtNews => rtbNewsBox;
-        private TextBlock lblSteamStatusCtl => lblSteamCmdStatus;
-        private System.Windows.Shapes.Ellipse serverStatusDotCtl => serverStatusDot;
-        private TextBlock lblServerStatusCtl => lblServerStatusText;
-        private TextBlock lblPlayersCtl => lblPlayersCount;
-        private TextBox txtLog => txtLogBox;
-        private TextBlock lblStatusCtl => lblStatus;
-        private ProgressBar progressModsCtl => progressMods;
-        private Button btnPlay => btnPlayMain;
-        private Button btnDiscordCtl => btnDiscord;
+        private PasswordBox txtServerPassword { get { return txtServerPasswordInput; } }
+        private RichTextBox txtNews { get { return rtbNewsBox; } }
+        private TextBox txtLog { get { return txtLogBox; } }
+        private Button btnPlay { get { return btnPlayMain; } }
 
-        private TextBox txtConanExe => SettingsPage.txtConanExe;
-        private CheckBox chkDisableIntro => SettingsPage.chkDisableIntro;
-        private CheckBox chkAutoSubscribe => SettingsPage.chkAutoSubscribe;
-        private CheckBox chkBoostLoading => SettingsPage.chkBoostLoading;
-        private Button btnCheckUpdates => SettingsPage.btnCheckUpdates;
-        private Button btnCheckSteamCmd => SettingsPage.btnCheckSteamCmd;
-        private Button btnBrowseConanExe => SettingsPage.btnBrowseConanExe;
-        private ComboBox cmbTheme => SettingsPage.cmbTheme;
+        private TextBox txtConanExe { get { return SettingsPage.txtConanExe; } }
+        private CheckBox chkDisableIntro { get { return SettingsPage.chkDisableIntro; } }
+        private CheckBox chkAutoSubscribe { get { return SettingsPage.chkAutoSubscribe; } }
+        private CheckBox chkBoostLoading { get { return SettingsPage.chkBoostLoading; } }
+        private Button btnCheckUpdates { get { return SettingsPage.btnCheckUpdates; } }
+        private Button btnCheckSteamCmd { get { return SettingsPage.btnCheckSteamCmd; } }
+        private Button btnBrowseConanExe { get { return SettingsPage.btnBrowseConanExe; } }
+        private Panel themeOptions { get { return SettingsPage.themeOptions; } }
 
         public MainWindow()
         {
             InitializeComponent();
             WirePageEvents();
-            ApplyThemeAssets();
+            ApplyBrandingAssets();
             LoadSettings();
             ShowMainPage();
+
             _serverStatusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
-            _serverStatusTimer.Tick += async (_, __) => await RefreshServerStatusAsync();
+            _serverStatusTimer.Tick += ServerStatusTimer_OnTick;
             _modSyncAnimationTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(260) };
-            _modSyncAnimationTimer.Tick += (_, __) => RefreshModSyncAnimatedStatus();
-            SizeChanged += MainWindow_SizeChanged;
-            Loaded += MainWindow_OnLoadedSetClip;
+            _modSyncAnimationTimer.Tick += (s, e) => RefreshModSyncAnimatedStatus();
+
             Loaded += MainWindow_Loaded;
-        }
-
-        private void MainWindow_OnLoadedSetClip(object sender, RoutedEventArgs e)
-        {
-            UpdateWindowClip();
-        }
-
-        private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            UpdateWindowClip();
+            Loaded += (s, e) => UpdateWindowClip();
+            SizeChanged += (s, e) => UpdateWindowClip();
         }
 
         private void UpdateWindowClip()
         {
-            Clip = new RectangleGeometry(new Rect(0, 0, ActualWidth, ActualHeight), 17, 17);
+            Clip = new RectangleGeometry(new Rect(0, 0, ActualWidth, ActualHeight), 16, 16);
         }
 
         private void WirePageEvents()
         {
             btnPlay.Click += BtnPlay_OnClick;
-            btnDiscordCtl.Click += BtnOpenDiscord_OnClick;
+            btnDiscord.Click += BtnOpenDiscord_OnClick;
+
             SettingsPage.btnCheckSteamCmd.Click += BtnCheckSteamCmd_OnClick;
             SettingsPage.btnCheckUpdates.Click += BtnCheckUpdates_OnClick;
             SettingsPage.btnBrowseConanExe.Click += BtnBrowseConanExe_OnClick;
-            SettingsPage.cmbTheme.SelectionChanged += CmbTheme_OnSelectionChanged;
-        }
 
-        private void BtnOpenDiscord_OnClick(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var url = AppRuntimeConfig.DiscordInviteUrl;
-                var discordUri = UrlSecurity.RequireAllowedHttpsUrl(url, _allowedHosts, "DiscordInviteUrl");
-                Process.Start(new ProcessStartInfo(discordUri.AbsoluteUri) { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                ShowError("Не удалось открыть ссылку Discord:\n" + ex.Message);
-            }
+            SettingsPage.txtConanExe.TextChanged += SettingsControl_OnChanged;
+            SettingsPage.chkDisableIntro.Checked += SettingsControl_OnChanged;
+            SettingsPage.chkDisableIntro.Unchecked += SettingsControl_OnChanged;
+            SettingsPage.chkAutoSubscribe.Checked += SettingsControl_OnChanged;
+            SettingsPage.chkAutoSubscribe.Unchecked += SettingsControl_OnChanged;
+            SettingsPage.chkBoostLoading.Checked += SettingsControl_OnChanged;
+            SettingsPage.chkBoostLoading.Unchecked += SettingsControl_OnChanged;
         }
 
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            await LoadNewsAsync();
-            await RefreshServerStatusAsync();
+            var newsTask = LoadNewsAsync();
+            var statusTask = RefreshServerStatusAsync();
+            await Task.WhenAll(newsTask, statusTask);
+
             _serverStatusTimer.Start();
             await CheckLauncherUpdateAsync(false);
         }
 
-        private void ApplyThemeAssets()
+        protected override void OnClosing(CancelEventArgs e)
+        {
+            _isClosing = true;
+            _serverStatusTimer.Stop();
+            _modSyncAnimationTimer.Stop();
+
+            try
+            {
+                SaveSettings();
+            }
+            catch
+            {
+            }
+
+            if (_cts != null)
+            {
+                try
+                {
+                    _cts.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+            }
+
+            _httpClient.Dispose();
+            base.OnClosing(e);
+        }
+
+        private void ServerStatusTimer_OnTick(object sender, EventArgs e)
+        {
+            var ignored = RefreshServerStatusAsync();
+        }
+
+        private void ApplyBrandingAssets()
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;
             var repoRoot = Path.GetFullPath(Path.Combine(baseDir, "..", "..", ".."));
@@ -189,35 +218,30 @@ namespace RealmLauncher
 
             if (logoPath != null)
             {
-                imgLogo.Source = new BitmapImage(new Uri(logoPath));
-            }
-
-            var bgPath = PickExisting(new[]
-            {
-                Path.Combine(baseDir, "Assets", "bg.png"),
-                Path.Combine(baseDir, "Assets", "bg.jpg"),
-                Path.Combine(repoRoot, "Assets", "bg.png"),
-                Path.Combine(repoRoot, "Assets", "bg.jpg")
-            });
-
-            if (bgPath != null)
-            {
-                Background = new ImageBrush(new BitmapImage(new Uri(bgPath)))
+                try
                 {
-                    Stretch = Stretch.UniformToFill,
-                    Opacity = 0.16
-                };
+                    var logo = new BitmapImage();
+                    logo.BeginInit();
+                    logo.CacheOption = BitmapCacheOption.OnLoad;
+                    logo.UriSource = new Uri(logoPath);
+                    logo.EndInit();
+                    logo.Freeze();
+                    imgLogo.Source = logo;
+                }
+                catch
+                {
+                }
             }
 
             var assemblyVersion = typeof(MainWindow).Assembly.GetName().Version;
             if (assemblyVersion != null)
             {
                 txtLauncherVersion.Text = string.Format(
-                    "Launcher v{0}.{1}.{2}.{3}",
-                    assemblyVersion.Major < 0 ? 0 : assemblyVersion.Major,
-                    assemblyVersion.Minor < 0 ? 0 : assemblyVersion.Minor,
-                    assemblyVersion.Build < 0 ? 0 : assemblyVersion.Build,
-                    assemblyVersion.Revision < 0 ? 0 : assemblyVersion.Revision);
+                    "v{0}.{1}.{2}.{3}",
+                    Math.Max(0, assemblyVersion.Major),
+                    Math.Max(0, assemblyVersion.Minor),
+                    Math.Max(0, assemblyVersion.Build),
+                    Math.Max(0, assemblyVersion.Revision));
             }
         }
 
@@ -234,327 +258,224 @@ namespace RealmLauncher
             return null;
         }
 
+        private void BuildThemeOptions(string selectedKey)
+        {
+            themeOptions.Children.Clear();
+
+            var chipStyle = TryFindResource("ThemeChipStyle") as Style;
+            var first = true;
+
+            foreach (var theme in ThemeManager.Available)
+            {
+                var chip = new RadioButton
+                {
+                    Style = chipStyle,
+                    GroupName = "LauncherTheme",
+                    Content = theme.DisplayName,
+                    Background = theme.PreviewBrush,
+                    Tag = theme,
+                    IsChecked = string.Equals(theme.Key, selectedKey, StringComparison.Ordinal),
+                    Margin = new Thickness(0, first ? 0 : 8, 0, 0)
+                };
+
+                chip.Checked += ThemeChip_OnChecked;
+                themeOptions.Children.Add(chip);
+                first = false;
+            }
+        }
+
+        private void ThemeChip_OnChecked(object sender, RoutedEventArgs e)
+        {
+            if (_isLoadingSettings || _settings == null)
+            {
+                return;
+            }
+
+            ThemeManager.Apply(GetSelectedThemeKey());
+            SaveSettings();
+
+            if (!string.IsNullOrWhiteSpace(_rawNews))
+            {
+                RenderNews(_rawNews);
+            }
+        }
+
+        private string GetSelectedThemeKey()
+        {
+            var selected = themeOptions.Children
+                .OfType<RadioButton>()
+                .FirstOrDefault(chip => chip.IsChecked == true);
+
+            var definition = selected != null ? selected.Tag as ThemeManager.ThemeDefinition : null;
+            return definition != null ? definition.Key : ThemeManager.DefaultThemeKey;
+        }
+
         private void LoadSettings()
         {
-            _settings = LauncherSettings.Load();
-            var defaultConfigUrl = AppRuntimeConfig.ServerConfigUrl;
-            txtConfigUrl.Text = !string.IsNullOrWhiteSpace(_settings.ConfigUrl)
-                ? _settings.ConfigUrl
-                : defaultConfigUrl;
-            txtConanExe.Text = _settings.ConanExePath ?? string.Empty;
-            txtServerPassword.Password = _settings.GetServerPassword();
-            chkDisableIntro.IsChecked = _settings.DisableCinematicIntro;
-            chkAutoSubscribe.IsChecked = _settings.AutomaticallySubscribeToWorkshopMods;
-            chkBoostLoading.IsChecked = _settings.BoostIngameLoading;
-            SelectThemeInUi(string.IsNullOrWhiteSpace(_settings.UiTheme) ? "Blue" : _settings.UiTheme);
-            ApplyThemePalette(GetSelectedThemeKey());
-            UpdateSteamCmdStatus();
+            _isLoadingSettings = true;
+            try
+            {
+                _settings = LauncherSettings.Load();
+                _settings.ConfigUrl = AppRuntimeConfig.ServerConfigUrl;
+
+                txtConanExe.Text = _settings.ConanExePath ?? string.Empty;
+                txtServerPassword.Password = _settings.GetServerPassword();
+                chkDisableIntro.IsChecked = _settings.DisableCinematicIntro;
+                chkAutoSubscribe.IsChecked = _settings.AutomaticallySubscribeToWorkshopMods;
+                chkBoostLoading.IsChecked = _settings.BoostIngameLoading;
+
+                var themeKey = ThemeManager.Normalize(_settings.UiTheme);
+                BuildThemeOptions(themeKey);
+                ThemeManager.Apply(themeKey);
+
+                UpdateSteamStatusLabel();
+            }
+            finally
+            {
+                _isLoadingSettings = false;
+            }
+        }
+
+        private void SettingsControl_OnChanged(object sender, RoutedEventArgs e)
+        {
+            if (_isLoadingSettings || _settings == null)
+            {
+                return;
+            }
+
+            SaveSettings();
+        }
+
+        private void SettingsControl_OnChanged(object sender, TextChangedEventArgs e)
+        {
+            if (_isLoadingSettings || _settings == null)
+            {
+                return;
+            }
+
+            SaveSettings();
         }
 
         private void SaveSettings()
         {
-            _settings.ConfigUrl = txtConfigUrl.Text.Trim();
-            _settings.ConanExePath = txtConanExe.Text.Trim();
+            if (_settings == null)
+            {
+                return;
+            }
+
+            _settings.ConfigUrl = AppRuntimeConfig.ServerConfigUrl;
+            _settings.ConanExePath = (txtConanExe.Text ?? string.Empty).Trim();
             _settings.SetServerPassword(txtServerPassword.Password);
             _settings.DisableCinematicIntro = chkDisableIntro.IsChecked == true;
             _settings.AutomaticallySubscribeToWorkshopMods = chkAutoSubscribe.IsChecked == true;
             _settings.BoostIngameLoading = chkBoostLoading.IsChecked == true;
             _settings.UiTheme = GetSelectedThemeKey();
-            _settings.Save();
+
+            string error;
+            if (!_settings.TrySave(out error) && !_isClosing)
+            {
+                AppendLog("Не удалось сохранить настройки: " + error);
+            }
         }
 
         private void ShowMainPage()
         {
             MainPageGrid.Visibility = Visibility.Visible;
             SettingsPage.Visibility = Visibility.Collapsed;
-            btnOpenSettings.Visibility = Visibility.Visible;
-            btnBackToMain.Visibility = Visibility.Collapsed;
+            btnNavMain.Tag = "active";
+            btnNavSettings.Tag = null;
         }
 
         private void ShowSettingsPage()
         {
             MainPageGrid.Visibility = Visibility.Collapsed;
             SettingsPage.Visibility = Visibility.Visible;
-            btnOpenSettings.Visibility = Visibility.Collapsed;
-            btnBackToMain.Visibility = Visibility.Visible;
+            btnNavMain.Tag = null;
+            btnNavSettings.Tag = "active";
         }
 
-        private void BtnOpenSettings_OnClick(object sender, RoutedEventArgs e)
-        {
-            ShowSettingsPage();
-        }
-
-        private void BtnBackToMain_OnClick(object sender, RoutedEventArgs e)
+        private void BtnNavMain_OnClick(object sender, RoutedEventArgs e)
         {
             SaveSettings();
             ShowMainPage();
         }
 
-        private void CmbTheme_OnSelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void BtnNavSettings_OnClick(object sender, RoutedEventArgs e)
         {
-            if (_isApplyingTheme || _settings == null)
-            {
-                return;
-            }
-
-            ApplyThemePalette(GetSelectedThemeKey());
-            SaveSettings();
-            _ = LoadNewsAsync();
+            ShowSettingsPage();
         }
 
-        private void SelectThemeInUi(string themeKey)
+        private void BtnCloseApp_OnClick(object sender, RoutedEventArgs e)
         {
-            if (cmbTheme == null)
+            Close();
+        }
+
+        private void BtnMinimizeApp_OnClick(object sender, RoutedEventArgs e)
+        {
+            WindowState = WindowState.Minimized;
+        }
+
+        private void HeaderBar_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ChangedButton != MouseButton.Left)
             {
                 return;
             }
 
-            var key = NormalizeThemeKey(themeKey);
-            _isApplyingTheme = true;
             try
             {
-                for (var i = 0; i < cmbTheme.Items.Count; i++)
-                {
-                    if (cmbTheme.Items[i] is ComboBoxItem item &&
-                        string.Equals(item.Tag as string, key, StringComparison.OrdinalIgnoreCase))
-                    {
-                        cmbTheme.SelectedIndex = i;
-                        return;
-                    }
-                }
-
-                cmbTheme.SelectedIndex = 0;
+                DragMove();
             }
-            finally
+            catch (InvalidOperationException)
             {
-                _isApplyingTheme = false;
             }
         }
 
-        private string GetSelectedThemeKey()
+        private void BtnOpenDiscord_OnClick(object sender, RoutedEventArgs e)
         {
-            if (cmbTheme?.SelectedItem is ComboBoxItem item)
+            try
             {
-                return NormalizeThemeKey(item.Tag as string);
+                var discordUri = UrlSecurity.RequireAllowedHttpsUrl(
+                    AppRuntimeConfig.DiscordInviteUrl, _allowedHosts, "DiscordInviteUrl");
+                Process.Start(new ProcessStartInfo(discordUri.AbsoluteUri) { UseShellExecute = true });
             }
-
-            return "Blue";
-        }
-
-        private static string NormalizeThemeKey(string themeKey)
-        {
-            return string.Equals(themeKey, "Bronze", StringComparison.OrdinalIgnoreCase) ? "Bronze" : "Blue";
-        }
-
-        private static SolidColorBrush Brush(string hex)
-        {
-            return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
-        }
-
-        private static ThemePalette BuildThemePalette(string themeKey)
-        {
-            if (string.Equals(themeKey, "Bronze", StringComparison.OrdinalIgnoreCase))
+            catch (Exception ex)
             {
-                return new ThemePalette
-                {
-                    TextMain = Brush("#F3E6CC"),
-                    TextMuted = Brush("#BDAA86"),
-                    PanelFill = Brush("#7A20160F"),
-                    InputBg = Brush("#8A140F0C"),
-                    InputStroke = Brush("#8E6B3E"),
-                    WindowShellBg = Brush("#120E0B"),
-                    WindowOuterBorderBrush = Brush("#6F4D2E"),
-                    HeaderFillBrush = Brush("#50312118"),
-                    HeaderSeparatorBrush = Brush("#120C09"),
-                    FooterFillBrush = Brush("#7A1A120C"),
-                    VersionBgBrush = Brush("#3A2A1D12"),
-                    VersionBorderBrush = Brush("#8E6B3E"),
-                    VersionTextBrush = Brush("#D9BF95"),
-                    SectionTitleBrush = Brush("#F3E6CC"),
-                    SectionLineBrush = Brush("#C48A45"),
-                    SectionLineSoftBrush = Brush("#E1B677"),
-                    PanelBorderBrush = Brush("#8E6B3E"),
-                    InnerPanelBorderBrush = Brush("#4A3623"),
-                    InnerPanelFillBrush = Brush("#6B120F0C"),
-                    WelcomePrimaryBrush = Brush("#F1E2C7"),
-                    WelcomeSecondaryBrush = Brush("#E2CFAC"),
-                    FooterDividerBrush = Brush("#9D7A4D"),
-                    ServerTextBrush = Brush("#E6D2AF"),
-                    PlayersTextBrush = Brush("#D8C2A0"),
-                    StatusDotStrokeBrush = Brush("#2C1E11"),
-                    ProgressForegroundBrush = Brush("#D69A49"),
-                    ProgressBackgroundBrush = Brush("#2A1C12"),
-                    ButtonTextBrush = Brush("#F7EBD5"),
-                    ButtonBgBrush = Brush("#6B3E1B"),
-                    ButtonBorderBrush = Brush("#DAA15A"),
-                    ButtonBgHoverBrush = Brush("#8A5626"),
-                    ButtonBorderHoverBrush = Brush("#F0C079"),
-                    ButtonBgPressedBrush = Brush("#5A3517"),
-                    ButtonSheenBrush = Brush("#E6B16B"),
-                    CloseButtonBgBrush = Brush("#6D3D1C"),
-                    CheckBorderBrush = Brush("#C48A45"),
-                    CheckBackgroundBrush = Brush("#2F2417"),
-                    CheckCheckedBgBrush = Brush("#8A5625"),
-                    CheckHoverBorderBrush = Brush("#F0C079"),
-                    CheckTickBrush = Brush("#F8E8D0"),
-                    ComboPopupBgBrush = Brush("#1A120D"),
-                    ComboItemHoverBgBrush = Brush("#4E3218"),
-                    ComboItemSelectedBgBrush = Brush("#6B3E1B"),
-                    ComboFocusBorderBrush = Brush("#A87946"),
-                    ComboArrowBrush = Brush("#D7B98C"),
-                    ButtonGlowColor = (Color)ColorConverter.ConvertFromString("#D28A39"),
-                    CheckGlowColor = (Color)ColorConverter.ConvertFromString("#B6762C"),
-                    CheckGlowStartColor = (Color)ColorConverter.ConvertFromString("#F1C887"),
-                    CheckGlowEndColor = (Color)ColorConverter.ConvertFromString("#A6672D"),
-                    BgGradTop = (Color)ColorConverter.ConvertFromString("#090A0D"),
-                    BgGradMid = (Color)ColorConverter.ConvertFromString("#1B1511"),
-                    BgGradBottom = (Color)ColorConverter.ConvertFromString("#0D0A08"),
-                    BgGlowTop = (Color)ColorConverter.ConvertFromString("#C67D2D"),
-                    BgGlowMid = (Color)ColorConverter.ConvertFromString("#5F3B1D"),
-                    BgGlowBottom = (Color)ColorConverter.ConvertFromString("#090806"),
-                    OverlayTintBrush = Brush("#55170E09"),
-                    NewsTitleBrush = Brush("#F6E7CC"),
-                    NewsLinkBrush = Brush("#E4B16D"),
-                    NewsBodyBrush = Brush("#D9C3A0"),
-                    NewsCardBackground = Brush("#66170F0C"),
-                    NewsCardBorder = Brush("#A87946"),
-                    NewsPlainTextBrush = Brush("#E7D6BA")
-                };
+                ShowError("Не удалось открыть ссылку Discord:\n" + ex.Message);
             }
+        }
 
-            return new ThemePalette
+        private void BtnClearLog_OnClick(object sender, RoutedEventArgs e)
+        {
+            _logLines.Clear();
+            txtLog.Clear();
+            UpdateLogPlaceholder();
+        }
+
+        private void BtnBrowseConanExe_OnClick(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFileDialog
             {
-                TextMain = Brush("#E6F0FF"),
-                TextMuted = Brush("#9FB5D8"),
-                PanelFill = Brush("#6A132B59"),
-                InputBg = Brush("#6F091733"),
-                InputStroke = Brush("#5E76B6"),
-                WindowShellBg = Brush("#152D56"),
-                WindowOuterBorderBrush = Brush("#436496"),
-                HeaderFillBrush = Brush("#50183364"),
-                HeaderSeparatorBrush = Brush("#020E27"),
-                FooterFillBrush = Brush("#7A030D26"),
-                VersionBgBrush = Brush("#3A132B59"),
-                VersionBorderBrush = Brush("#5E7DB5"),
-                VersionTextBrush = Brush("#BFD7FF"),
-                SectionTitleBrush = Brush("#E5F0FF"),
-                SectionLineBrush = Brush("#6DB2FF"),
-                SectionLineSoftBrush = Brush("#8FBFF9"),
-                PanelBorderBrush = Brush("#5E7DB5"),
-                InnerPanelBorderBrush = Brush("#2B3D61"),
-                InnerPanelFillBrush = Brush("#6B081B39"),
-                WelcomePrimaryBrush = Brush("#ECF4FF"),
-                WelcomeSecondaryBrush = Brush("#ECF4FF"),
-                FooterDividerBrush = Brush("#7096D4"),
-                ServerTextBrush = Brush("#D7E8FF"),
-                PlayersTextBrush = Brush("#BBD2F9"),
-                StatusDotStrokeBrush = Brush("#0A1328"),
-                ProgressForegroundBrush = Brush("#4AAFFF"),
-                ProgressBackgroundBrush = Brush("#2A406A"),
-                ButtonTextBrush = Brush("#EAF5FF"),
-                ButtonBgBrush = Brush("#3E72CF"),
-                ButtonBorderBrush = Brush("#6EA8FF"),
-                ButtonBgHoverBrush = Brush("#4A84EA"),
-                ButtonBorderHoverBrush = Brush("#9BC8FF"),
-                ButtonBgPressedBrush = Brush("#325FAF"),
-                ButtonSheenBrush = Brush("#78C9FF"),
-                CloseButtonBgBrush = Brush("#3D78D8"),
-                CheckBorderBrush = Brush("#6FA9FF"),
-                CheckBackgroundBrush = Brush("#1D3562"),
-                CheckCheckedBgBrush = Brush("#2A67C2"),
-                CheckHoverBorderBrush = Brush("#9ED0FF"),
-                CheckTickBrush = Brush("#ECF4FF"),
-                ComboPopupBgBrush = Brush("#132745"),
-                ComboItemHoverBgBrush = Brush("#2A4776"),
-                ComboItemSelectedBgBrush = Brush("#365E98"),
-                ComboFocusBorderBrush = Brush("#5E76B6"),
-                ComboArrowBrush = Brush("#9FB5D8"),
-                ButtonGlowColor = (Color)ColorConverter.ConvertFromString("#55A8FF"),
-                CheckGlowColor = (Color)ColorConverter.ConvertFromString("#3E86E5"),
-                CheckGlowStartColor = (Color)ColorConverter.ConvertFromString("#82D2FF"),
-                CheckGlowEndColor = (Color)ColorConverter.ConvertFromString("#2A7CE0"),
-                BgGradTop = (Color)ColorConverter.ConvertFromString("#102A55"),
-                BgGradMid = (Color)ColorConverter.ConvertFromString("#1B3D73"),
-                BgGradBottom = (Color)ColorConverter.ConvertFromString("#0F2C5A"),
-                BgGlowTop = (Color)ColorConverter.ConvertFromString("#3B7EDB"),
-                BgGlowMid = (Color)ColorConverter.ConvertFromString("#1E4E93"),
-                BgGlowBottom = (Color)ColorConverter.ConvertFromString("#001229"),
-                OverlayTintBrush = Brush("#66040C23"),
-                NewsTitleBrush = Brush("#EAF4FF"),
-                NewsLinkBrush = Brush("#7EC1FF"),
-                NewsBodyBrush = Brush("#D2E3FF"),
-                NewsCardBackground = Brush("#5F0B2345"),
-                NewsCardBorder = Brush("#4D7CB7"),
-                NewsPlainTextBrush = Brush("#DCEBFF")
+                Filter = "ConanSandbox.exe|ConanSandbox.exe|Исполняемые файлы (*.exe)|*.exe|Все файлы (*.*)|*.*",
+                Title = "Выберите ConanSandbox.exe"
             };
+
+            if (dialog.ShowDialog(this) == true)
+            {
+                txtConanExe.Text = dialog.FileName;
+            }
         }
 
-        private void ApplyThemePalette(string themeKey)
+        private async void BtnRefreshNews_OnClick(object sender, RoutedEventArgs e)
         {
-            _isApplyingTheme = true;
+            btnRefreshNews.IsEnabled = false;
             try
             {
-                _themePalette = BuildThemePalette(themeKey);
-                Resources["TextMain"] = _themePalette.TextMain;
-                Resources["TextMuted"] = _themePalette.TextMuted;
-                Resources["PanelFill"] = _themePalette.PanelFill;
-                Resources["InputBg"] = _themePalette.InputBg;
-                Resources["InputStroke"] = _themePalette.InputStroke;
-                Resources["WindowShellBg"] = _themePalette.WindowShellBg;
-                Resources["WindowOuterBorderBrush"] = _themePalette.WindowOuterBorderBrush;
-                Resources["HeaderFillBrush"] = _themePalette.HeaderFillBrush;
-                Resources["HeaderSeparatorBrush"] = _themePalette.HeaderSeparatorBrush;
-                Resources["FooterFillBrush"] = _themePalette.FooterFillBrush;
-                Resources["VersionBgBrush"] = _themePalette.VersionBgBrush;
-                Resources["VersionBorderBrush"] = _themePalette.VersionBorderBrush;
-                Resources["VersionTextBrush"] = _themePalette.VersionTextBrush;
-                Resources["SectionTitleBrush"] = _themePalette.SectionTitleBrush;
-                Resources["SectionLineBrush"] = _themePalette.SectionLineBrush;
-                Resources["SectionLineSoftBrush"] = _themePalette.SectionLineSoftBrush;
-                Resources["PanelBorderBrush"] = _themePalette.PanelBorderBrush;
-                Resources["InnerPanelBorderBrush"] = _themePalette.InnerPanelBorderBrush;
-                Resources["InnerPanelFillBrush"] = _themePalette.InnerPanelFillBrush;
-                Resources["WelcomePrimaryBrush"] = _themePalette.WelcomePrimaryBrush;
-                Resources["WelcomeSecondaryBrush"] = _themePalette.WelcomeSecondaryBrush;
-                Resources["FooterDividerBrush"] = _themePalette.FooterDividerBrush;
-                Resources["ServerTextBrush"] = _themePalette.ServerTextBrush;
-                Resources["PlayersTextBrush"] = _themePalette.PlayersTextBrush;
-                Resources["StatusDotStrokeBrush"] = _themePalette.StatusDotStrokeBrush;
-                Resources["ProgressForegroundBrush"] = _themePalette.ProgressForegroundBrush;
-                Resources["ProgressBackgroundBrush"] = _themePalette.ProgressBackgroundBrush;
-                Resources["ButtonTextBrush"] = _themePalette.ButtonTextBrush;
-                Resources["ButtonBgBrush"] = _themePalette.ButtonBgBrush;
-                Resources["ButtonBorderBrush"] = _themePalette.ButtonBorderBrush;
-                Resources["ButtonBgHoverBrush"] = _themePalette.ButtonBgHoverBrush;
-                Resources["ButtonBorderHoverBrush"] = _themePalette.ButtonBorderHoverBrush;
-                Resources["ButtonBgPressedBrush"] = _themePalette.ButtonBgPressedBrush;
-                Resources["ButtonSheenBrush"] = _themePalette.ButtonSheenBrush;
-                Resources["CloseButtonBgBrush"] = _themePalette.CloseButtonBgBrush;
-                Resources["CheckBorderBrush"] = _themePalette.CheckBorderBrush;
-                Resources["CheckBackgroundBrush"] = _themePalette.CheckBackgroundBrush;
-                Resources["CheckCheckedBgBrush"] = _themePalette.CheckCheckedBgBrush;
-                Resources["CheckHoverBorderBrush"] = _themePalette.CheckHoverBorderBrush;
-                Resources["CheckTickBrush"] = _themePalette.CheckTickBrush;
-                Resources["ComboPopupBgBrush"] = _themePalette.ComboPopupBgBrush;
-                Resources["ComboItemHoverBgBrush"] = _themePalette.ComboItemHoverBgBrush;
-                Resources["ComboItemSelectedBgBrush"] = _themePalette.ComboItemSelectedBgBrush;
-                Resources["ComboFocusBorderBrush"] = _themePalette.ComboFocusBorderBrush;
-                Resources["ComboArrowBrush"] = _themePalette.ComboArrowBrush;
-                Resources["ButtonGlowColor"] = _themePalette.ButtonGlowColor;
-                Resources["CheckGlowColor"] = _themePalette.CheckGlowColor;
-                Resources["CheckGlowStartColor"] = _themePalette.CheckGlowStartColor;
-                Resources["CheckGlowEndColor"] = _themePalette.CheckGlowEndColor;
-                Resources["BgGradTop"] = _themePalette.BgGradTop;
-                Resources["BgGradMid"] = _themePalette.BgGradMid;
-                Resources["BgGradBottom"] = _themePalette.BgGradBottom;
-                Resources["BgGlowTop"] = _themePalette.BgGlowTop;
-                Resources["BgGlowMid"] = _themePalette.BgGlowMid;
-                Resources["BgGlowBottom"] = _themePalette.BgGlowBottom;
-                Resources["OverlayTintBrush"] = _themePalette.OverlayTintBrush;
+                await LoadNewsAsync();
             }
             finally
             {
-                _isApplyingTheme = false;
+                btnRefreshNews.IsEnabled = true;
             }
         }
 
@@ -570,8 +491,8 @@ namespace RealmLauncher
             try
             {
                 var newsUri = UrlSecurity.RequireAllowedHttpsUrl(newsUrl, _allowedHosts, "NewsFeedUrl");
-                var raw = await _httpClient.GetStringAsync(newsUri);
-                RenderNews(raw);
+                _rawNews = await _httpClient.GetStringAsync(newsUri);
+                RenderNews(_rawNews);
             }
             catch (Exception ex)
             {
@@ -619,22 +540,36 @@ namespace RealmLauncher
         private void SetNewsItems(JArray items)
         {
             var doc = CreateNewsDocument();
+            var titleBrush = ThemeBrush("TextPrimaryBrush", "#E9EFFA");
+            var linkBrush = ThemeBrush("AccentBrush", "#3B82F6");
+            var bodyBrush = ThemeBrush("TextSecondaryBrush", "#9BAEC9");
+            var cardBackground = ThemeBrush("SurfaceBrush", "#B3101B2E");
+            var cardBorder = ThemeBrush("StrokeBrush", "#242F49");
+
             foreach (var item in items.OfType<JObject>())
             {
-                var title = item.Value<string>("title")?.Trim();
-                var body = item.Value<string>("body")?.Trim();
+                var title = item.Value<string>("title");
+                title = title != null ? title.Trim() : null;
+
+                var body = item.Value<string>("body");
+                body = body != null ? body.Trim() : null;
                 if (string.IsNullOrWhiteSpace(body))
                 {
-                    body = item.Value<string>("description")?.Trim() ?? item.Value<string>("summary")?.Trim();
+                    var description = item.Value<string>("description");
+                    var summary = item.Value<string>("summary");
+                    body = description != null ? description.Trim() : (summary != null ? summary.Trim() : null);
                 }
 
-                var link = item.Value<string>("url")?.Trim();
+                var link = item.Value<string>("url");
+                link = link != null ? link.Trim() : null;
                 if (string.IsNullOrWhiteSpace(link))
                 {
-                    link = item.Value<string>("link")?.Trim();
+                    var alternate = item.Value<string>("link");
+                    link = alternate != null ? alternate.Trim() : null;
                 }
 
-                if (TryExtractMarkdownLink(title, out var mdTitle, out var mdLink))
+                string mdTitle, mdLink;
+                if (TryExtractMarkdownLink(title, out mdTitle, out mdLink))
                 {
                     title = mdTitle;
                     if (string.IsNullOrWhiteSpace(link))
@@ -649,57 +584,62 @@ namespace RealmLauncher
                 }
 
                 var panel = new StackPanel();
+
                 if (!string.IsNullOrWhiteSpace(title))
                 {
                     var titleBlock = new TextBlock
                     {
-                        Foreground = _themePalette?.NewsTitleBrush ?? Brush("#EAF4FF"),
-                        FontSize = 15.5,
-                        FontWeight = FontWeights.SemiBold,
+                        Foreground = titleBrush,
+                        FontSize = 14.5,
+                        FontWeight = FontWeights.Bold,
                         TextWrapping = TextWrapping.Wrap
                     };
-                    if (!string.IsNullOrWhiteSpace(link) && Uri.TryCreate(link, UriKind.Absolute, out var uri))
+
+                    Uri uri;
+                    if (!string.IsNullOrWhiteSpace(link) && Uri.TryCreate(link, UriKind.Absolute, out uri))
                     {
-                        var hyperlink = new Hyperlink(new Run(title))
+                        var hyperlink = new Hyperlink
                         {
                             NavigateUri = uri,
-                            TextDecorations = TextDecorations.Underline,
-                            Foreground = _themePalette?.NewsLinkBrush ?? Brush("#7EC1FF")
+                            TextDecorations = null,
+                            Foreground = linkBrush,
+                            Cursor = Cursors.Hand
                         };
-                        hyperlink.Inlines.Clear();
-                        AddTextWithEmojiInlines(hyperlink.Inlines, title, 16);
+                        AddTextWithEmojiInlines(hyperlink.Inlines, title, 15);
                         hyperlink.RequestNavigate += NewsHyperlink_RequestNavigate;
                         titleBlock.Inlines.Add(hyperlink);
                     }
                     else
                     {
-                        AddTextWithEmojiInlines(titleBlock.Inlines, title, 16);
+                        AddTextWithEmojiInlines(titleBlock.Inlines, title, 15);
                     }
+
                     panel.Children.Add(titleBlock);
                 }
 
                 if (!string.IsNullOrWhiteSpace(body))
                 {
-                    panel.Children.Add(new TextBlock
+                    var bodyBlock = new TextBlock
                     {
-                        Margin = new Thickness(0, 6, 0, 0),
-                        Foreground = _themePalette?.NewsBodyBrush ?? Brush("#D2E3FF"),
-                        FontSize = 13.2,
+                        Margin = new Thickness(0, 7, 0, 0),
+                        Foreground = bodyBrush,
+                        FontSize = 13,
                         TextWrapping = TextWrapping.Wrap
-                    });
-                    AddTextWithEmojiInlines(((TextBlock)panel.Children[panel.Children.Count - 1]).Inlines, body, 14);
+                    };
+                    AddTextWithEmojiInlines(bodyBlock.Inlines, body, 14);
+                    panel.Children.Add(bodyBlock);
                 }
-                var border = new Border
+
+                doc.Blocks.Add(new BlockUIContainer(new Border
                 {
-                    Background = _themePalette?.NewsCardBackground ?? Brush("#5F0B2345"),
-                    BorderBrush = _themePalette?.NewsCardBorder ?? Brush("#4D7CB7"),
+                    Background = cardBackground,
+                    BorderBrush = cardBorder,
                     BorderThickness = new Thickness(1),
-                    CornerRadius = new CornerRadius(10),
-                    Padding = new Thickness(10, 8, 10, 9),
-                    Margin = new Thickness(0, 0, 0, 8),
+                    CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(14, 12, 14, 13),
+                    Margin = new Thickness(0, 0, 0, 10),
                     Child = panel
-                };
-                doc.Blocks.Add(new BlockUIContainer(border));
+                }));
             }
 
             if (!doc.Blocks.Any())
@@ -716,11 +656,42 @@ namespace RealmLauncher
             var doc = CreateNewsDocument();
             doc.Blocks.Add(new Paragraph(new Run(text ?? string.Empty))
             {
-                Foreground = _themePalette?.NewsPlainTextBrush ?? Brush("#DCEBFF"),
-                FontSize = 13.5,
+                Foreground = ThemeBrush("TextSecondaryBrush", "#9BAEC9"),
+                FontSize = 13.2,
                 Margin = new Thickness(0)
             });
             txtNews.Document = doc;
+        }
+
+        private FlowDocument CreateNewsDocument()
+        {
+            return new FlowDocument
+            {
+                Background = Brushes.Transparent,
+                PagePadding = new Thickness(0),
+                TextAlignment = TextAlignment.Left,
+                FontFamily = new FontFamily("TT Norms Pro, Segoe UI Emoji"),
+                LineHeight = 19
+            };
+        }
+
+        private Brush ThemeBrush(string resourceKey, string fallbackHex)
+        {
+            var brush = TryFindResource(resourceKey) as Brush;
+            return brush ?? new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallbackHex));
+        }
+
+        private void NewsHyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
+        {
+            try
+            {
+                var safeUri = UrlSecurity.RequireAllowedHttpsUrl(e.Uri.ToString(), _allowedHosts, "NewsLink");
+                Process.Start(new ProcessStartInfo(safeUri.AbsoluteUri) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                ShowError("Не удалось открыть ссылку новости:\n" + ex.Message);
+            }
         }
 
         private static bool TryExtractMarkdownLink(string text, out string title, out string url)
@@ -743,39 +714,9 @@ namespace RealmLauncher
             return true;
         }
 
-        private FlowDocument CreateNewsDocument()
-        {
-            return new FlowDocument
-            {
-                Background = Brushes.Transparent,
-                PagePadding = new Thickness(0),
-                TextAlignment = TextAlignment.Left,
-                FontFamily = new FontFamily("TT Norms Pro, Segoe UI Emoji"),
-                LineHeight = 20
-            };
-        }
-
-        private void NewsHyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
-        {
-            try
-            {
-                var safeUri = UrlSecurity.RequireAllowedHttpsUrl(e.Uri.ToString(), _allowedHosts, "NewsLink");
-                Process.Start(new ProcessStartInfo(safeUri.AbsoluteUri) { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                ShowError("Не удалось открыть ссылку новости:\n" + ex.Message);
-            }
-        }
-
         private void AddTextWithEmojiInlines(InlineCollection inlines, string text, double emojiSize)
         {
-            if (inlines == null)
-            {
-                return;
-            }
-
-            if (string.IsNullOrEmpty(text))
+            if (inlines == null || string.IsNullOrEmpty(text))
             {
                 return;
             }
@@ -785,7 +726,9 @@ namespace RealmLauncher
             while (enumerator.MoveNext())
             {
                 var element = enumerator.GetTextElement();
-                if (TryCreateEmojiInline(element, emojiSize, out var emojiInline))
+
+                InlineUIContainer emojiInline;
+                if (TryCreateEmojiInline(element, emojiSize, out emojiInline))
                 {
                     if (buffer.Length > 0)
                     {
@@ -806,7 +749,7 @@ namespace RealmLauncher
             }
         }
 
-        private static bool TryCreateEmojiInline(string element, double size, out InlineUIContainer inline)
+        private bool TryCreateEmojiInline(string element, double size, out InlineUIContainer inline)
         {
             inline = null;
             if (string.IsNullOrWhiteSpace(element))
@@ -814,22 +757,60 @@ namespace RealmLauncher
                 return false;
             }
 
-            if (!EmojiIconUrls.TryGetValue(element, out var url))
+            string url;
+            if (!EmojiIconUrls.TryGetValue(element, out url))
             {
                 return false;
             }
 
-            var image = new Image
+            var source = GetEmojiImage(url);
+            if (source == null)
+            {
+                return false;
+            }
+
+            inline = new InlineUIContainer(new Image
             {
                 Width = size,
                 Height = size,
                 Stretch = Stretch.Uniform,
                 Margin = new Thickness(0, -2, 0, -2),
-                Source = new BitmapImage(new Uri(url, UriKind.Absolute))
+                Source = source
+            })
+            {
+                BaselineAlignment = BaselineAlignment.TextBottom
             };
 
-            inline = new InlineUIContainer(image) { BaselineAlignment = BaselineAlignment.TextBottom };
             return true;
+        }
+
+        private BitmapImage GetEmojiImage(string url)
+        {
+            BitmapImage cached;
+            if (EmojiImageCache.TryGetValue(url, out cached))
+            {
+                return cached;
+            }
+
+            BitmapImage image = null;
+            try
+            {
+                var safeUri = UrlSecurity.RequireAllowedHttpsUrl(url, _allowedHosts, "EmojiIcon");
+
+                image = new BitmapImage();
+                image.BeginInit();
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.DecodePixelHeight = 36;
+                image.UriSource = safeUri;
+                image.EndInit();
+            }
+            catch
+            {
+                image = null;
+            }
+
+            EmojiImageCache[url] = image;
+            return image;
         }
 
         private async void BtnPlay_OnClick(object sender, RoutedEventArgs e)
@@ -837,7 +818,7 @@ namespace RealmLauncher
             try
             {
                 ToggleUi(false);
-                txtLog.Clear();
+                ClearLog();
                 AppendLog("Старт REALM RolePlay Launcher...");
                 StartProgress("Инициализация...");
                 SaveSettings();
@@ -850,7 +831,7 @@ namespace RealmLauncher
                 _cts = new CancellationTokenSource();
 
                 SetStatus("Загрузка конфига сервера...");
-                var config = await _launcherService.DownloadConfigAsync(_settings.ConfigUrl, _allowedHosts, _cts.Token);
+                var config = await GetServerConfigAsync(true, _cts.Token);
                 SetProgress(StageConfigLoaded, "Конфиг сервера загружен.");
                 AppendLog(string.Format("Сервер: {0}", config.Name));
                 AppendLog(string.Format("IP: {0}", config.Ip));
@@ -944,6 +925,11 @@ namespace RealmLauncher
                     }
                 }
             }
+            catch (OperationCanceledException)
+            {
+                SetStatus("Операция отменена.");
+                AppendLog("Операция отменена.");
+            }
             catch (Exception ex)
             {
                 SetStatus("Ошибка.");
@@ -952,6 +938,7 @@ namespace RealmLauncher
             }
             finally
             {
+                StopModSyncAnimation();
                 ToggleUi(true);
             }
         }
@@ -963,23 +950,13 @@ namespace RealmLauncher
                 ToggleUi(false);
                 if (IsSteamClientRunning())
                 {
-                    UpdateSteamCmdStatus();
+                    UpdateSteamStatusLabel();
                     AppendLog("Steam уже запущен.");
                     ShowInfo("Steam уже запущен и готов к загрузке модов.");
                     return;
                 }
 
-                try
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = "steam://open/main",
-                        UseShellExecute = true
-                    });
-                }
-                catch
-                {
-                }
+                TryStartSteamClient();
 
                 for (var i = 0; i < 10; i++)
                 {
@@ -990,7 +967,7 @@ namespace RealmLauncher
                     await Task.Delay(500);
                 }
 
-                UpdateSteamCmdStatus();
+                UpdateSteamStatusLabel();
                 SetStatus(IsSteamClientRunning() ? "Steam запущен и готов." : "Steam не удалось запустить автоматически.");
             }
             catch (Exception ex)
@@ -1010,48 +987,23 @@ namespace RealmLauncher
             await CheckLauncherUpdateAsync(true);
         }
 
-        private void BtnCloseApp_OnClick(object sender, RoutedEventArgs e)
-        {
-            Close();
-        }
-
-        private void HeaderBar_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ChangedButton == MouseButton.Left)
-            {
-                DragMove();
-            }
-        }
-
-        private void BtnBrowseConanExe_OnClick(object sender, RoutedEventArgs e)
-        {
-            var dialog = new OpenFileDialog
-            {
-                Filter = "ConanSandbox.exe|ConanSandbox.exe|Исполняемые файлы (*.exe)|*.exe|Все файлы (*.*)|*.*",
-                Title = "Выберите ConanSandbox.exe"
-            };
-
-            if (dialog.ShowDialog(this) == true)
-            {
-                txtConanExe.Text = dialog.FileName;
-            }
-        }
-
         private void ToggleUi(bool enabled)
         {
-            txtConfigUrl.IsEnabled = enabled;
             txtConanExe.IsEnabled = enabled;
             txtServerPassword.IsEnabled = enabled;
             chkDisableIntro.IsEnabled = enabled;
             chkAutoSubscribe.IsEnabled = enabled;
             chkBoostLoading.IsEnabled = enabled;
+            themeOptions.IsEnabled = enabled;
             btnCheckUpdates.IsEnabled = enabled;
             btnCheckSteamCmd.IsEnabled = enabled;
             btnBrowseConanExe.IsEnabled = enabled;
             btnPlay.IsEnabled = enabled;
-            btnDiscordCtl.IsEnabled = enabled;
-            btnBackToMain.IsEnabled = enabled;
-            btnOpenSettings.IsEnabled = enabled;
+            btnDiscord.IsEnabled = enabled;
+            btnRefreshNews.IsEnabled = enabled;
+            btnClearLog.IsEnabled = enabled;
+            btnNavMain.IsEnabled = enabled;
+            btnNavSettings.IsEnabled = enabled;
         }
 
         private bool ValidateServerPassword(ServerConfig config)
@@ -1101,13 +1053,13 @@ namespace RealmLauncher
                 .Select(x =>
                 {
                     var sizeText = x.SizeBytes > 0 ? string.Format("{0:0.0} MB", x.SizeBytes / 1024d / 1024d) : "размер неизвестен";
-                    return string.Format("- [{0}] {1}/{2} ({3})", x.Status, x.ModId, x.PakName, sizeText);
+                    return string.Format("• [{0}] {1}/{2} ({3})", x.Status, x.ModId, x.PakName, sizeText);
                 })
                 .ToList();
 
             if (analysis.Updates.Count > 20)
             {
-                lines.Add(string.Format("- ... и ещё {0} мод(ов)", analysis.Updates.Count - 20));
+                lines.Add(string.Format("• ... и ещё {0} мод(ов)", analysis.Updates.Count - 20));
             }
 
             var message =
@@ -1131,15 +1083,8 @@ namespace RealmLauncher
             }
         }
 
-        private async Task EnsureSteamClientReadyAsync()
+        private static void TryStartSteamClient()
         {
-            if (IsSteamClientRunning())
-            {
-                UpdateSteamCmdStatus();
-                return;
-            }
-
-            AppendLog("Steam не запущен. Выполняется запуск Steam...");
             try
             {
                 Process.Start(new ProcessStartInfo
@@ -1151,12 +1096,24 @@ namespace RealmLauncher
             catch
             {
             }
+        }
+
+        private async Task EnsureSteamClientReadyAsync()
+        {
+            if (IsSteamClientRunning())
+            {
+                UpdateSteamStatusLabel();
+                return;
+            }
+
+            AppendLog("Steam не запущен. Выполняется запуск Steam...");
+            TryStartSteamClient();
 
             for (var i = 0; i < 20; i++)
             {
                 if (IsSteamClientRunning())
                 {
-                    UpdateSteamCmdStatus();
+                    UpdateSteamStatusLabel();
                     return;
                 }
                 await Task.Delay(500);
@@ -1165,20 +1122,35 @@ namespace RealmLauncher
             throw new InvalidOperationException("Steam не запущен. Запустите клиент Steam и повторите.");
         }
 
-        private void UpdateSteamCmdStatus()
+        private void UpdateSteamStatusLabel()
         {
-            var steamText = IsSteamClientRunning()
-                ? "Steam: запущен"
-                : "Steam: не запущен";
-            lblSteamStatusCtl.Text = steamText;
-            lblServerStatusCtl.Text = "Сервер: " + _serverStatusText;
-            lblPlayersCtl.Text = _serverPlayersText;
-            serverStatusDotCtl.Fill = _serverStatusBrush;
+            var running = IsSteamClientRunning();
+            lblSteamCmdStatus.Text = running ? "запущен" : "не запущен";
+            lblSteamCmdStatus.Foreground = running
+                ? ThemeBrush("SuccessBrush", "#3DDC97")
+                : ThemeBrush("TextMutedBrush", "#6B7F9C");
+        }
+
+        private async Task<ServerConfig> GetServerConfigAsync(bool forceRefresh, CancellationToken cancellationToken)
+        {
+            if (!forceRefresh &&
+                _cachedServerConfig != null &&
+                DateTime.UtcNow - _cachedServerConfigUtc < ServerConfigCacheTtl)
+            {
+                return _cachedServerConfig;
+            }
+
+            var config = await _launcherService.DownloadConfigAsync(
+                AppRuntimeConfig.ServerConfigUrl, _allowedHosts, cancellationToken);
+
+            _cachedServerConfig = config;
+            _cachedServerConfigUtc = DateTime.UtcNow;
+            return config;
         }
 
         private async Task RefreshServerStatusAsync()
         {
-            if (_isRefreshingServerStatus)
+            if (_isRefreshingServerStatus || _isClosing)
             {
                 return;
             }
@@ -1186,47 +1158,52 @@ namespace RealmLauncher
             _isRefreshingServerStatus = true;
             try
             {
-                _serverStatusText = "проверка...";
-                _serverPlayersText = "Игроки: --/--";
-                _serverStatusBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#F4C542"));
-                UpdateSteamCmdStatus();
-
-                var configUrl = !string.IsNullOrWhiteSpace(txtConfigUrl.Text)
-                    ? txtConfigUrl.Text.Trim()
-                    : AppRuntimeConfig.ServerConfigUrl;
-
                 using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8)))
                 {
-                    var config = await _launcherService.DownloadConfigAsync(configUrl, _allowedHosts, cts.Token);
+                    var config = await GetServerConfigAsync(false, cts.Token);
                     var host = ExtractHost(config.Ip);
                     var queryPort = config.QueryPort ?? AppRuntimeConfig.DefaultQueryPort;
                     var serverInfo = await _launcherService.QueryServerInfoAsync(host, queryPort, cts.Token);
 
+                    if (_isClosing)
+                    {
+                        return;
+                    }
+
                     if (serverInfo.IsOnline)
                     {
-                        _serverStatusText = "онлайн";
-                        _serverPlayersText = string.Format("Игроки: {0}/{1}", serverInfo.Players, serverInfo.MaxPlayers);
-                        _serverStatusBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4BE37D"));
+                        SetServerStatusUi("Онлайн",
+                            string.Format("{0}/{1}", serverInfo.Players, serverInfo.MaxPlayers),
+                            ThemeBrush("SuccessBrush", "#3DDC97"));
                     }
                     else
                     {
-                        _serverStatusText = "офлайн";
-                        _serverPlayersText = "Игроки: 0/0";
-                        _serverStatusBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF6666"));
+                        SetServerStatusUi("Офлайн", "0/0", ThemeBrush("DangerBrush", "#FF6B6B"));
                     }
                 }
             }
             catch
             {
-                _serverStatusText = "недоступен";
-                _serverPlayersText = "Игроки: --/--";
-                _serverStatusBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF6666"));
+                if (!_isClosing)
+                {
+                    SetServerStatusUi("Недоступен", "--/--", ThemeBrush("DangerBrush", "#FF6B6B"));
+                }
             }
             finally
             {
-                UpdateSteamCmdStatus();
+                if (!_isClosing)
+                {
+                    UpdateSteamStatusLabel();
+                }
                 _isRefreshingServerStatus = false;
             }
+        }
+
+        private void SetServerStatusUi(string status, string players, Brush accent)
+        {
+            lblServerStatusText.Text = status;
+            lblPlayersCount.Text = players;
+            serverStatusDot.Fill = accent;
         }
 
         private static string ExtractHost(string ipWithPort)
@@ -1248,9 +1225,10 @@ namespace RealmLauncher
 
         private void StartProgress(string status)
         {
-            progressModsCtl.Minimum = 0;
-            progressModsCtl.Maximum = ProgressScale;
-            progressModsCtl.Value = 0;
+            progressMods.Minimum = 0;
+            progressMods.Maximum = ProgressScale;
+            progressMods.Value = 0;
+            lblProgressPercent.Text = "0%";
             if (!string.IsNullOrWhiteSpace(status))
             {
                 SetStatus(status);
@@ -1260,7 +1238,8 @@ namespace RealmLauncher
         private void SetProgress(double fraction, string status)
         {
             var clamped = Math.Max(0d, Math.Min(1d, fraction));
-            progressModsCtl.Value = (int)Math.Round(clamped * ProgressScale);
+            progressMods.Value = (int)Math.Round(clamped * ProgressScale);
+            lblProgressPercent.Text = ((int)Math.Round(clamped * 100)).ToString(CultureInfo.InvariantCulture) + "%";
             if (!string.IsNullOrWhiteSpace(status))
             {
                 SetStatus(status);
@@ -1278,8 +1257,13 @@ namespace RealmLauncher
             var allDone = current >= totalSafe - 0.0001d;
             var cleanModName = ExtractModDisplayName(modLabel);
 
-            Dispatcher.Invoke(() =>
+            Dispatcher.BeginInvoke(new Action(() =>
             {
+                if (_isClosing)
+                {
+                    return;
+                }
+
                 _modSyncDone = completed;
                 _modSyncTotal = totalInt;
                 _modSyncCurrentModName = cleanModName;
@@ -1287,9 +1271,8 @@ namespace RealmLauncher
 
                 if (allDone)
                 {
-                    _isModSyncStatusActive = false;
-                    _modSyncAnimationTimer.Stop();
-                    SetStatus(string.Format("Обновление модов: {0}/{1} ({2} - завершено)", _modSyncDone, _modSyncTotal, _modSyncCurrentModName));
+                    StopModSyncAnimation();
+                    SetStatus(string.Format("Обновление модов: {0}/{1} ({2} — завершено)", _modSyncDone, _modSyncTotal, _modSyncCurrentModName));
                 }
                 else
                 {
@@ -1302,7 +1285,13 @@ namespace RealmLauncher
 
                     RefreshModSyncAnimatedStatus();
                 }
-            });
+            }));
+        }
+
+        private void StopModSyncAnimation()
+        {
+            _isModSyncStatusActive = false;
+            _modSyncAnimationTimer.Stop();
         }
 
         private void RefreshModSyncAnimatedStatus()
@@ -1342,12 +1331,7 @@ namespace RealmLauncher
             {
             }
 
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return "мод";
-            }
-
-            return value;
+            return string.IsNullOrWhiteSpace(value) ? "мод" : value;
         }
 
         private async Task CheckLauncherUpdateAsync(bool userInitiated)
@@ -1437,7 +1421,7 @@ namespace RealmLauncher
 
                     var totalLabel = total.HasValue && total.Value > 0 ? FormatSize(total.Value) : "неизвестно";
                     var status = string.Format("Скачивание обновления: {0} / {1}", FormatSize(downloaded), totalLabel);
-                    Dispatcher.Invoke(() => SetProgress(0.05 + (0.85 * fraction), status));
+                    Dispatcher.BeginInvoke(new Action(() => SetProgress(0.05 + (0.85 * fraction), status)));
                 },
                 CancellationToken.None);
 
@@ -1445,72 +1429,6 @@ namespace RealmLauncher
             _updateService.InstallAndRestart(packagePath);
             SetProgress(1.0, "Обновление установлено. Перезапуск...");
             Application.Current.Shutdown();
-        }
-
-        private sealed class ThemePalette
-        {
-            public Brush TextMain { get; set; }
-            public Brush TextMuted { get; set; }
-            public Brush PanelFill { get; set; }
-            public Brush InputBg { get; set; }
-            public Brush InputStroke { get; set; }
-            public Brush WindowShellBg { get; set; }
-            public Brush WindowOuterBorderBrush { get; set; }
-            public Brush HeaderFillBrush { get; set; }
-            public Brush HeaderSeparatorBrush { get; set; }
-            public Brush FooterFillBrush { get; set; }
-            public Brush VersionBgBrush { get; set; }
-            public Brush VersionBorderBrush { get; set; }
-            public Brush VersionTextBrush { get; set; }
-            public Brush SectionTitleBrush { get; set; }
-            public Brush SectionLineBrush { get; set; }
-            public Brush SectionLineSoftBrush { get; set; }
-            public Brush PanelBorderBrush { get; set; }
-            public Brush InnerPanelBorderBrush { get; set; }
-            public Brush InnerPanelFillBrush { get; set; }
-            public Brush WelcomePrimaryBrush { get; set; }
-            public Brush WelcomeSecondaryBrush { get; set; }
-            public Brush FooterDividerBrush { get; set; }
-            public Brush ServerTextBrush { get; set; }
-            public Brush PlayersTextBrush { get; set; }
-            public Brush StatusDotStrokeBrush { get; set; }
-            public Brush ProgressForegroundBrush { get; set; }
-            public Brush ProgressBackgroundBrush { get; set; }
-            public Brush ButtonTextBrush { get; set; }
-            public Brush ButtonBgBrush { get; set; }
-            public Brush ButtonBorderBrush { get; set; }
-            public Brush ButtonBgHoverBrush { get; set; }
-            public Brush ButtonBorderHoverBrush { get; set; }
-            public Brush ButtonBgPressedBrush { get; set; }
-            public Brush ButtonSheenBrush { get; set; }
-            public Brush CloseButtonBgBrush { get; set; }
-            public Brush CheckBorderBrush { get; set; }
-            public Brush CheckBackgroundBrush { get; set; }
-            public Brush CheckCheckedBgBrush { get; set; }
-            public Brush CheckHoverBorderBrush { get; set; }
-            public Brush CheckTickBrush { get; set; }
-            public Brush ComboPopupBgBrush { get; set; }
-            public Brush ComboItemHoverBgBrush { get; set; }
-            public Brush ComboItemSelectedBgBrush { get; set; }
-            public Brush ComboFocusBorderBrush { get; set; }
-            public Brush ComboArrowBrush { get; set; }
-            public Color ButtonGlowColor { get; set; }
-            public Color CheckGlowColor { get; set; }
-            public Color CheckGlowStartColor { get; set; }
-            public Color CheckGlowEndColor { get; set; }
-            public Color BgGradTop { get; set; }
-            public Color BgGradMid { get; set; }
-            public Color BgGradBottom { get; set; }
-            public Color BgGlowTop { get; set; }
-            public Color BgGlowMid { get; set; }
-            public Color BgGlowBottom { get; set; }
-            public Brush OverlayTintBrush { get; set; }
-            public Brush NewsTitleBrush { get; set; }
-            public Brush NewsLinkBrush { get; set; }
-            public Brush NewsBodyBrush { get; set; }
-            public Brush NewsCardBackground { get; set; }
-            public Brush NewsCardBorder { get; set; }
-            public Brush NewsPlainTextBrush { get; set; }
         }
 
         private static string FormatSize(long bytes)
@@ -1549,29 +1467,41 @@ namespace RealmLauncher
 
         private void SetStatus(string text)
         {
-            lblStatusCtl.Text = text;
+            lblStatus.Text = text;
+        }
+
+        private void ClearLog()
+        {
+            _logLines.Clear();
+            txtLog.Clear();
+            UpdateLogPlaceholder();
+        }
+
+        private void UpdateLogPlaceholder()
+        {
+            txtLogPlaceholder.Visibility = _logLines.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void AppendLog(string line)
         {
-            Dispatcher.Invoke(() =>
+            Dispatcher.BeginInvoke(new Action(() =>
             {
-                var message = string.Format("[{0:HH:mm:ss}] {1}", DateTime.Now, line);
-                if (txtLog.Text.Length == 0)
+                if (_isClosing)
                 {
-                    txtLog.Text = message;
-                }
-                else
-                {
-                    txtLog.AppendText(Environment.NewLine + message);
+                    return;
                 }
 
+                _logLines.Add(string.Format("[{0:HH:mm:ss}] {1}", DateTime.Now, line));
+                if (_logLines.Count > MaxLogLines)
+                {
+                    _logLines.RemoveRange(0, _logLines.Count - MaxLogLines);
+                }
+
+                txtLog.Text = string.Join(Environment.NewLine, _logLines);
                 txtLog.CaretIndex = txtLog.Text.Length;
                 txtLog.ScrollToEnd();
-            });
+                UpdateLogPlaceholder();
+            }));
         }
     }
 }
-
-
-

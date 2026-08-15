@@ -640,12 +640,20 @@ namespace RealmLauncher.Services
             queryPacket.AddRange(Encoding.ASCII.GetBytes(queryString));
             queryPacket.Add(0x00);
 
-            using (var udp = new UdpClient())
+            var addresses = await Dns.GetHostAddressesAsync(host).ConfigureAwait(false);
+            var address = addresses.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork)
+                          ?? addresses.FirstOrDefault();
+            if (address == null)
+            {
+                throw new InvalidOperationException("Не удалось разрешить адрес сервера: " + host);
+            }
+
+            using (var udp = new UdpClient(address.AddressFamily))
             {
                 udp.Client.ReceiveTimeout = 3500;
                 udp.Client.SendTimeout = 3500;
 
-                var endpoint = new IPEndPoint(Dns.GetHostAddresses(host).First(), queryPort);
+                var endpoint = new IPEndPoint(address, queryPort);
                 await udp.SendAsync(queryPacket.ToArray(), queryPacket.Count, endpoint).ConfigureAwait(false);
                 var response = await ReceiveWithCancellationAsync(udp, cancellationToken).ConfigureAwait(false);
 
