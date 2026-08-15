@@ -78,6 +78,9 @@ namespace RealmLauncher.Services
         public const int ConanSteamAppId = 440900;
         private const string WorkshopApiUrl = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/";
 
+        private static readonly DateTime UnixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        private static readonly TimeSpan WorkshopTimeTolerance = TimeSpan.FromMinutes(5);
+
         private static readonly HttpClient HttpClient = new HttpClient();
         private static readonly object SteamworksSync = new object();
         private static bool _steamworksInitialized;
@@ -371,7 +374,7 @@ namespace RealmLauncher.Services
             EnsureSteamworksInitialized(log);
             log(string.Format("Проверка {0} мод(ов) через Steam...", entries.Count));
 
-            var sizes = await TryLoadWorkshopSizesAsync(
+            var workshopInfo = await TryLoadWorkshopInfoAsync(
                 entries.Select(x => x.ModId).Distinct().ToList(), log, cancellationToken).ConfigureAwait(false);
 
             for (var i = 0; i < entries.Count; i++)
@@ -380,14 +383,16 @@ namespace RealmLauncher.Services
                 var entry = entries[i];
                 progress?.Invoke(i + 1, entries.Count);
 
-                long size;
-                if (!sizes.TryGetValue(entry.ModId, out size))
+                WorkshopFileInfo info;
+                if (!workshopInfo.TryGetValue(entry.ModId, out info))
                 {
-                    size = 0;
+                    info = new WorkshopFileInfo();
                 }
 
+                var size = info.SizeBytes;
                 var pakPath = Path.Combine(workshopContentRoot, entry.ModId, entry.PakName);
-                var status = await ResolveModStatusAsync(entry, pakPath, cancellationToken).ConfigureAwait(false);
+                var status = await ResolveModStatusAsync(
+                    entry, pakPath, info.UpdatedUtc, cancellationToken).ConfigureAwait(false);
 
                 analysis.All.Add(new ModUpdateInfo
                 {
@@ -413,7 +418,8 @@ namespace RealmLauncher.Services
             return analysis;
         }
 
-        private static async Task<string> ResolveModStatusAsync(ModEntry entry, string pakPath, CancellationToken cancellationToken)
+        private static async Task<string> ResolveModStatusAsync(
+            ModEntry entry, string pakPath, DateTime workshopUpdatedUtc, CancellationToken cancellationToken)
         {
             ulong rawId;
             if (!ulong.TryParse(entry.ModId, out rawId))
@@ -421,12 +427,22 @@ namespace RealmLauncher.Services
                 return ModStatus.Missing;
             }
 
+            if (!File.Exists(pakPath))
+            {
+                return ModStatus.Missing;
+            }
+
+            if (IsOlderThanWorkshop(pakPath, workshopUpdatedUtc))
+            {
+                return ModStatus.Outdated;
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
 
             var queried = await SteamUGC.QueryFileAsync((Steamworks.Data.PublishedFileId)rawId).ConfigureAwait(false);
             if (!queried.HasValue)
             {
-                return File.Exists(pakPath) ? ModStatus.UpToDate : ModStatus.Missing;
+                return ModStatus.UpToDate;
             }
 
             var item = queried.Value;
@@ -436,18 +452,46 @@ namespace RealmLauncher.Services
                 return ModStatus.Missing;
             }
 
-            if (item.NeedsUpdate)
+            if (item.NeedsUpdate || IsOlderThanWorkshop(pakPath, item.Updated))
             {
                 return ModStatus.Outdated;
             }
 
-            return File.Exists(pakPath) ? ModStatus.UpToDate : ModStatus.Missing;
+            return ModStatus.UpToDate;
         }
 
-        private async Task<Dictionary<string, long>> TryLoadWorkshopSizesAsync(
+        private static bool IsOlderThanWorkshop(string pakPath, DateTime workshopUpdatedUtc)
+        {
+            if (workshopUpdatedUtc == default(DateTime))
+            {
+                return false;
+            }
+
+            try
+            {
+                var localUpdatedUtc = File.GetLastWriteTimeUtc(pakPath);
+                return workshopUpdatedUtc.ToUniversalTime() - localUpdatedUtc > WorkshopTimeTolerance;
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return false;
+            }
+        }
+
+        private sealed class WorkshopFileInfo
+        {
+            public long SizeBytes;
+            public DateTime UpdatedUtc;
+        }
+
+        private async Task<Dictionary<string, WorkshopFileInfo>> TryLoadWorkshopInfoAsync(
             IList<string> modIds, Action<string> log, CancellationToken cancellationToken)
         {
-            var result = new Dictionary<string, long>(StringComparer.Ordinal);
+            var result = new Dictionary<string, WorkshopFileInfo>(StringComparer.Ordinal);
             if (modIds == null || modIds.Count == 0)
             {
                 return result;
@@ -478,19 +522,34 @@ namespace RealmLauncher.Services
                     foreach (var mod in details)
                     {
                         var modId = mod["publishedfileid"] != null ? mod["publishedfileid"].ToString() : string.Empty;
-                        var sizeRaw = mod["file_size"] != null ? mod["file_size"].ToString() : "0";
+                        if (string.IsNullOrWhiteSpace(modId))
+                        {
+                            continue;
+                        }
+
+                        var info = new WorkshopFileInfo();
 
                         long sizeBytes;
-                        if (!string.IsNullOrWhiteSpace(modId) && long.TryParse(sizeRaw, out sizeBytes))
+                        var sizeRaw = mod["file_size"] != null ? mod["file_size"].ToString() : "0";
+                        if (long.TryParse(sizeRaw, out sizeBytes))
                         {
-                            result[modId] = sizeBytes;
+                            info.SizeBytes = sizeBytes;
                         }
+
+                        long updatedRaw;
+                        var updatedText = mod["time_updated"] != null ? mod["time_updated"].ToString() : "0";
+                        if (long.TryParse(updatedText, out updatedRaw) && updatedRaw > 0)
+                        {
+                            info.UpdatedUtc = UnixEpoch.AddSeconds(updatedRaw);
+                        }
+
+                        result[modId] = info;
                     }
                 }
             }
             catch (Exception ex)
             {
-                log?.Invoke("Не удалось получить размеры модов из Steam API: " + ex.Message);
+                log?.Invoke("Не удалось получить данные модов из Steam API: " + ex.Message);
             }
 
             return result;
