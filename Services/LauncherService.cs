@@ -130,14 +130,134 @@ namespace RealmLauncher.Services
             }
         }
 
-        public async Task<ServerConfig> DownloadConfigAsync(string configUrl, ISet<string> allowedHosts, CancellationToken cancellationToken)
+        public static string ServerConfigCachePath
+        {
+            get
+            {
+                return Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "RealmLauncher",
+                    "server-config.cache.json");
+            }
+        }
+
+        public async Task<ServerConfig> DownloadConfigAsync(
+            string configUrl, ISet<string> allowedHosts, CancellationToken cancellationToken)
+        {
+            return await DownloadConfigAsync(configUrl, allowedHosts, null, cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<ServerConfig> DownloadConfigAsync(
+            string configUrl, ISet<string> allowedHosts, Action<string> log, CancellationToken cancellationToken)
+        {
+            return await DownloadConfigAsync(
+                new[] { configUrl }, allowedHosts, log, cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<ServerConfig> DownloadConfigAsync(
+            IEnumerable<string> configUrls,
+            ISet<string> allowedHosts,
+            Action<string> log,
+            CancellationToken cancellationToken)
+        {
+            Exception primaryError = null;
+            var attempted = 0;
+
+            foreach (var url in configUrls ?? Enumerable.Empty<string>())
+            {
+                if (string.IsNullOrWhiteSpace(url))
+                {
+                    continue;
+                }
+
+                attempted++;
+
+                try
+                {
+                    var json = await FetchConfigJsonAsync(url, allowedHosts, cancellationToken).ConfigureAwait(false);
+                    var config = ParseConfig(json);
+                    TryWriteConfigCache(json);
+
+                    if (attempted > 1)
+                    {
+                        log?.Invoke("Настройки сервера получены с запасного адреса.");
+                    }
+
+                    return config;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    if (primaryError == null)
+                    {
+                        primaryError = ex;
+                    }
+                }
+            }
+
+            var cached = TryReadConfigCache();
+            if (cached == null)
+            {
+                throw primaryError ?? new InvalidOperationException("Не задан адрес настроек сервера.");
+            }
+
+            log?.Invoke("Не удалось получить настройки сервера (" + primaryError.Message +
+                        "). Используется сохранённая копия.");
+            return cached;
+        }
+
+        private async Task<string> FetchConfigJsonAsync(
+            string configUrl, ISet<string> allowedHosts, CancellationToken cancellationToken)
         {
             var configUri = UrlSecurity.RequireAllowedHttpsUrl(configUrl, allowedHosts, "URL JSON сервера");
 
             using (var response = await HttpClient.GetAsync(configUri, cancellationToken).ConfigureAwait(false))
             {
                 response.EnsureSuccessStatusCode();
-                var json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            }
+        }
+
+        private static void TryWriteConfigCache(string json)
+        {
+            try
+            {
+                var path = ServerConfigCachePath;
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(path, json, new UTF8Encoding(false));
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
+        private static ServerConfig TryReadConfigCache()
+        {
+            try
+            {
+                var path = ServerConfigCachePath;
+                if (!File.Exists(path))
+                {
+                    return null;
+                }
+
+                return ParseConfig(File.ReadAllText(path, new UTF8Encoding(false)));
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static ServerConfig ParseConfig(string json)
+        {
+            {
                 var config = JsonConvert.DeserializeObject<ServerConfig>(json);
 
                 if (config == null)

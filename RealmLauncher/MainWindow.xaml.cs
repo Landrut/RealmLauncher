@@ -887,23 +887,30 @@ namespace RealmLauncher
 
         private async Task LoadNewsAsync()
         {
-            var newsUrl = AppRuntimeConfig.NewsFeedUrl;
-            if (string.IsNullOrWhiteSpace(newsUrl))
+            Exception lastError = null;
+
+            foreach (var newsUrl in AppRuntimeConfig.NewsFeedUrls)
             {
-                SetNewsPlainText("URL новостей не задан.");
-                return;
+                if (string.IsNullOrWhiteSpace(newsUrl))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var newsUri = UrlSecurity.RequireAllowedHttpsUrl(newsUrl, _allowedHosts, "NewsFeedUrl");
+                    _rawNews = await _httpClient.GetStringAsync(newsUri);
+                    RenderNews(_rawNews);
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                }
             }
 
-            try
-            {
-                var newsUri = UrlSecurity.RequireAllowedHttpsUrl(newsUrl, _allowedHosts, "NewsFeedUrl");
-                _rawNews = await _httpClient.GetStringAsync(newsUri);
-                RenderNews(_rawNews);
-            }
-            catch (Exception ex)
-            {
-                SetNewsPlainText("Не удалось загрузить новости.\n\n" + ex.Message);
-            }
+            SetNewsPlainText("Не удалось загрузить новости.\n\n" +
+                             (lastError != null ? lastError.Message : "URL новостей не задан."));
         }
 
         private void RenderNews(string raw)
@@ -2314,7 +2321,7 @@ namespace RealmLauncher
             }
 
             var config = await _launcherService.DownloadConfigAsync(
-                AppRuntimeConfig.ServerConfigUrl, _allowedHosts, cancellationToken);
+                AppRuntimeConfig.ServerConfigUrls, _allowedHosts, AppendLog, cancellationToken);
 
             _cachedServerConfig = config;
             _cachedServerConfigUtc = DateTime.UtcNow;
@@ -2643,6 +2650,31 @@ namespace RealmLauncher
             await CheckLauncherUpdateAsync(true);
         }
 
+        private async Task<LauncherUpdateCheckResult> CheckManifestWithFallbackAsync(Version currentVersion)
+        {
+            Exception lastError = null;
+
+            foreach (var url in AppRuntimeConfig.UpdateManifestUrls)
+            {
+                if (string.IsNullOrWhiteSpace(url))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    return await _updateService.CheckForUpdatesAsync(
+                        url, currentVersion, _allowedHosts, CancellationToken.None);
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                }
+            }
+
+            throw lastError ?? new InvalidOperationException("URL манифеста обновлений не задан.");
+        }
+
         private async Task CheckLauncherUpdateAsync(bool userInitiated)
         {
             var manifestUrl = AppRuntimeConfig.UpdateManifestUrl;
@@ -2665,7 +2697,7 @@ namespace RealmLauncher
                 }
 
                 var currentVersion = typeof(MainWindow).Assembly.GetName().Version ?? new Version(1, 0, 0, 0);
-                var result = await _updateService.CheckForUpdatesAsync(manifestUrl, currentVersion, _allowedHosts, CancellationToken.None);
+                var result = await CheckManifestWithFallbackAsync(currentVersion);
                 if (!result.IsUpdateAvailable || result.Manifest == null)
                 {
                     if (userInitiated)

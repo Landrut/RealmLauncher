@@ -14,6 +14,26 @@ namespace RealmLauncher.Services
         public const string UpdateManifestUrl = "https://gist.githubusercontent.com/Landrut/052e98e840a62835505698c8d409b1fd/raw/update-manifest.json";
         public const string NewsFeedUrl = "https://gist.githubusercontent.com/Landrut/17bf997f7774832f976296f2f136a577/raw/news-feed.json";
 
+        private const string MirrorRoot = "https://realm-rp.com/launcher/";
+
+        public static readonly string[] ServerConfigUrls =
+        {
+            ServerConfigUrl,
+            MirrorRoot + "realm-roleplay.json"
+        };
+
+        public static readonly string[] NewsFeedUrls =
+        {
+            NewsFeedUrl,
+            MirrorRoot + "news-feed.json"
+        };
+
+        public static readonly string[] UpdateManifestUrls =
+        {
+            UpdateManifestUrl,
+            MirrorRoot + "update-manifest.json"
+        };
+
         public const string DiscordApplicationId = "1538078204718481428";
 
         public const string DiscordDefaultIdleDetails = "В лаунчере";
