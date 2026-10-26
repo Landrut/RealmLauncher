@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -1205,12 +1205,19 @@ namespace RealmLauncher.Services
             }
 
             var players = buffer[offset++];
-            var maxPlayers = buffer[offset];
+            var maxPlayers = buffer[offset++];
 
             info.IsOnline = true;
             info.Name = name;
             info.Players = players;
             info.MaxPlayers = maxPlayers;
+
+            // bots, server type, environment, then visibility (0 public, 1 password)
+            if (offset + 3 < buffer.Length)
+            {
+                info.RequiresPassword = buffer[offset + 3] != 0;
+            }
+
             return info;
         }
 

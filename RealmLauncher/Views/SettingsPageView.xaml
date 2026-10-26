@@ -1,4 +1,4 @@
-<UserControl x:Class="RealmLauncher.Views.SettingsPageView"
+﻿<UserControl x:Class="RealmLauncher.Views.SettingsPageView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -71,6 +71,51 @@
                                         Content="Указать вручную"
                                         Style="{DynamicResource SecondaryButtonStyle}"/>
                             </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource WellStyle}" Margin="0,12,0,0">
+                        <StackPanel Margin="16,14,16,16">
+                            <TextBlock Text="ВЕРСИЯ ИГРЫ" Style="{DynamicResource CardTitleStyle}"/>
+
+                            <TextBlock x:Name="txtBranchState" x:FieldModifier="public"
+                                       Margin="0,10,0,0"
+                                       FontSize="13.5"
+                                       FontWeight="Medium"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextPrimaryBrush}"
+                                       Text="Версия игры определяется..."/>
+
+                            <TextBlock x:Name="txtBranchHint" x:FieldModifier="public"
+                                       Margin="0,6,0,0"
+                                       Style="{DynamicResource HintTextStyle}"
+                                       Text="Наш сервер работает на версии Enhanced."/>
+
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="btnSwitchEnhanced" x:FieldModifier="public"
+                                        Grid.Column="0"
+                                        Height="36"
+                                        Content="Перейти на Enhanced"
+                                        Style="{DynamicResource SecondaryButtonStyle}"/>
+                                <Button x:Name="btnSwitchLegacy" x:FieldModifier="public"
+                                        Grid.Column="2"
+                                        Height="36"
+                                        Content="Вернуться на Legacy"
+                                        Style="{DynamicResource SecondaryButtonStyle}"/>
+                            </Grid>
+
+                            <Button x:Name="btnRecheckBranch" x:FieldModifier="public"
+                                    Margin="0,8,0,0"
+                                    Height="34"
+                                    HorizontalAlignment="Left"
+                                    Padding="18,0"
+                                    Content="Проверить версию заново"
+                                    Style="{DynamicResource SecondaryButtonStyle}"/>
                         </StackPanel>
                     </Border>
 
@@ -190,6 +235,17 @@
                             <TextBlock Margin="0,8,54,0"
                                        Style="{DynamicResource HintTextStyle}"
                                        Text="Окно не будет открываться на весь экран при автозапуске."/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource WellStyle}" Margin="0,12,0,0">
+                        <StackPanel Margin="16,14,16,15">
+                            <CheckBox x:Name="chkSkipIntro" x:FieldModifier="public"
+                                      Style="{DynamicResource RealmToggleStyle}"
+                                      Content="Пропускать заставки при запуске"/>
+                            <TextBlock Margin="0,8,54,0"
+                                       Style="{DynamicResource HintTextStyle}"
+                                       Text="Игра будет открывать меню сразу, без роликов Funcom, Nvidia и вступления. Файлы заставок переименовываются в папке игры и возвращаются, если выключить настройку. Проверка файлов в Steam вернёт их обратно."/>
                         </StackPanel>
                     </Border>
 

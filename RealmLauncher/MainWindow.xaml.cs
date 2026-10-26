@@ -22,6 +22,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Threading;
@@ -55,38 +56,14 @@ namespace RealmLauncher
         private readonly DiscordRichPresence _discord = new DiscordRichPresence(AppRuntimeConfig.DiscordApplicationId);
         private readonly ObservableCollection<ModUpdateInfo> _mods = new ObservableCollection<ModUpdateInfo>();
         private bool _modListPopulated;
+        private bool? _serverRequiresPassword;
+        private readonly List<GalleryShot> _galleryShots = new List<GalleryShot>();
+        private DispatcherTimer _galleryTimer;
+        private int _galleryIndex = -1;
 
         private readonly HttpClient _httpClient = new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(12)
-        };
-
-        private static readonly Dictionary<string, string> EmojiIconUrls = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            { "📢", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f4e2.png" },
-            { "🔥", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f525.png" },
-            { "⚒️", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2692.png" },
-            { "⚒", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2692.png" },
-            { "🛠", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f6e0.png" },
-            { "🎣", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f3a3.png" },
-            { "🌿", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f33f.png" },
-            { "🎭", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f3ad.png" },
-            { "📜", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f4dc.png" },
-            { "📚", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f4da.png" },
-            { "🛡", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f6e1.png" },
-            { "♨️", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2668.png" },
-            { "♨", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2668.png" },
-            { "🍺", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f37a.png" },
-            { "🏛", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f3db.png" },
-            { "🧭", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/1f9ed.png" },
-            { "⚙️", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2699.png" },
-            { "⚙", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2699.png" },
-            { "⚔️", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2694.png" },
-            { "⚔", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2694.png" },
-            { "✅", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2705.png" },
-            { "❗", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2757.png" },
-            { "ℹ️", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2139.png" },
-            { "ℹ", "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/2139.png" }
         };
 
         private static readonly Dictionary<string, BitmapImage> EmojiImageCache =
@@ -121,7 +98,6 @@ namespace RealmLauncher
 
         private System.Windows.Forms.NotifyIcon _trayIcon;
 
-        private PasswordBox txtServerPassword { get { return txtServerPasswordInput; } }
         private RichTextBox txtNews { get { return rtbNewsBox; } }
         private TextBox txtLog { get { return txtLogBox; } }
         private Button btnPlay { get { return btnPlayMain; } }
@@ -131,6 +107,7 @@ namespace RealmLauncher
         private CheckBox chkBattlEye { get { return SettingsPage.chkBattlEye; } }
         private CheckBox chkNotifyOnline { get { return SettingsPage.chkNotifyOnline; } }
         private CheckBox chkDiscordStatus { get { return SettingsPage.chkDiscordStatus; } }
+        private CheckBox chkSkipIntro { get { return SettingsPage.chkSkipIntro; } }
         private CheckBox chkAutoStart { get { return SettingsPage.chkAutoStart; } }
         private CheckBox chkStartMinimized { get { return SettingsPage.chkStartMinimized; } }
         private Button btnCheckUpdates { get { return SettingsPage.btnCheckUpdates; } }
@@ -153,6 +130,9 @@ namespace RealmLauncher
 
             _serverStatusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
             _serverStatusTimer.Tick += ServerStatusTimer_OnTick;
+
+            _galleryTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(7) };
+            _galleryTimer.Tick += (s, e) => ShowNextGalleryShot();
 
             Loaded += MainWindow_Loaded;
             Loaded += (s, e) => UpdateWindowClip();
@@ -188,6 +168,16 @@ namespace RealmLauncher
             SettingsPage.chkBattlEye.Unchecked += SettingsControl_OnChanged;
             SettingsPage.chkNotifyOnline.Checked += SettingsControl_OnChanged;
             SettingsPage.chkNotifyOnline.Unchecked += SettingsControl_OnChanged;
+            SettingsPage.btnSwitchEnhanced.Click += (s, e) => OpenSteamBranchSwitch(false);
+            SettingsPage.btnSwitchLegacy.Click += (s, e) => OpenSteamBranchSwitch(true);
+            SettingsPage.btnRecheckBranch.Click += (s, e) =>
+            {
+                EnsureGameLocated(false);
+                UpdateBranchBadge();
+                AppendLog("Версия игры проверена заново.");
+            };
+            SettingsPage.chkSkipIntro.Checked += IntroMoviesOption_OnChanged;
+            SettingsPage.chkSkipIntro.Unchecked += IntroMoviesOption_OnChanged;
             SettingsPage.chkDiscordStatus.Checked += DiscordStatusOption_OnChanged;
             SettingsPage.chkDiscordStatus.Unchecked += DiscordStatusOption_OnChanged;
             SettingsPage.chkDeveloperMode.Checked += DeveloperMode_OnChanged;
@@ -204,7 +194,8 @@ namespace RealmLauncher
 
             var newsTask = LoadNewsAsync();
             var statusTask = RefreshServerStatusAsync();
-            await Task.WhenAll(newsTask, statusTask);
+            var galleryTask = LoadGalleryAsync();
+            await Task.WhenAll(newsTask, statusTask, galleryTask);
 
             _serverStatusTimer.Start();
 
@@ -379,11 +370,11 @@ namespace RealmLauncher
                 _settings.ConfigUrl = AppRuntimeConfig.ServerConfigUrl;
 
                 txtConanExe.Text = _settings.ConanExePath ?? string.Empty;
-                txtServerPassword.Password = _settings.GetServerPassword();
                 chkAutoSubscribe.IsChecked = _settings.AutomaticallySubscribeToWorkshopMods;
                 chkBattlEye.IsChecked = _settings.LaunchWithBattlEye;
                 chkNotifyOnline.IsChecked = _settings.NotifyWhenServerOnline;
                 chkDiscordStatus.IsChecked = _settings.ShowDiscordStatus;
+                chkSkipIntro.IsChecked = _settings.SkipIntroMovies;
                 chkDeveloperMode.IsChecked = _settings.DeveloperMode;
                 chkStartMinimized.IsChecked = _settings.StartMinimized;
                 chkAutoStart.IsChecked = StartupManager.IsEnabled();
@@ -448,11 +439,11 @@ namespace RealmLauncher
 
             _settings.ConfigUrl = AppRuntimeConfig.ServerConfigUrl;
             _settings.ConanExePath = (txtConanExe.Text ?? string.Empty).Trim();
-            _settings.SetServerPassword(txtServerPassword.Password);
             _settings.AutomaticallySubscribeToWorkshopMods = chkAutoSubscribe.IsChecked == true;
             _settings.LaunchWithBattlEye = chkBattlEye.IsChecked == true;
             _settings.NotifyWhenServerOnline = chkNotifyOnline.IsChecked == true;
             _settings.ShowDiscordStatus = chkDiscordStatus.IsChecked == true;
+            _settings.SkipIntroMovies = chkSkipIntro.IsChecked == true;
             _settings.DeveloperMode = chkDeveloperMode.IsChecked == true;
             _settings.StartMinimized = chkStartMinimized.IsChecked == true;
             _settings.UiTheme = GetSelectedThemeKey();
@@ -513,11 +504,69 @@ namespace RealmLauncher
                 SettingsPage.txtBranchBadge.Text = info.BranchKey.ToUpperInvariant();
                 SettingsPage.txtBranchBadge.Foreground = ThemeBrush("DangerBrush", "#E8776B");
                 SettingsPage.txtGameHint.Text = "Внимание: выбрана бета-ветка Steam. Моды сервера рассчитаны на Enhanced.";
+
+                SettingsPage.txtBranchState.Text = "Сейчас установлена Legacy — на наш сервер зайти не получится";
+                SettingsPage.txtBranchState.Foreground = ThemeBrush("DangerBrush", "#E8776B");
+                SettingsPage.txtBranchHint.Text =
+                    "REALM работает на Enhanced. Нажмите «Перейти на Enhanced» — откроются свойства игры " +
+                    "в Steam, там нужно выбрать бета-версию «Нет». Steam скачает другую сборку, это займёт время.";
             }
             else
             {
                 SettingsPage.txtBranchBadge.Text = "ENHANCED";
                 SettingsPage.txtBranchBadge.Foreground = ThemeBrush("AccentBrush", "#D9903F");
+
+                SettingsPage.txtBranchState.Text = "Сейчас установлена Enhanced — версия нашего сервера";
+                SettingsPage.txtBranchState.Foreground = ThemeBrush("SuccessBrush", "#7FC98A");
+                SettingsPage.txtBranchHint.Text =
+                    "Вернуться на Legacy можно ради других серверов: откроются свойства игры в Steam, " +
+                    "там нужно выбрать бета-версию conan-exiles-legacy. На REALM после этого зайти не выйдет.";
+            }
+
+            SettingsPage.btnSwitchEnhanced.IsEnabled = info.IsLegacyBranch;
+            SettingsPage.btnSwitchLegacy.IsEnabled = !info.IsLegacyBranch;
+        }
+
+        // Steam has no API for changing a branch, so take the player straight to
+        // the one dialog where it can be done and say exactly what to click.
+        private void OpenSteamBranchSwitch(bool toLegacy)
+        {
+            var steps = toLegacy
+                ? "1. В открывшемся окне Steam выберите слева «Бета-версии».\n" +
+                  "2. В списке выберите «conan-exiles-legacy».\n" +
+                  "3. Дождитесь, пока Steam скачает сборку Legacy.\n\n" +
+                  "После этого на REALM зайти не получится — вернуть Enhanced можно той же кнопкой."
+                : "1. В открывшемся окне Steam выберите слева «Бета-версии».\n" +
+                  "2. В списке выберите «Нет» — это и есть Enhanced.\n" +
+                  "3. Дождитесь, пока Steam скачает сборку Enhanced.\n\n" +
+                  "Скачивание занимает время: это другая сборка игры, а не патч.";
+
+            var answer = RealmDialog.Show(
+                this,
+                toLegacy ? "Возврат на Legacy" : "Переход на Enhanced",
+                steps,
+                RealmDialogButtons.Choice,
+                RealmDialogType.Question,
+                "Открыть Steam",
+                "Отмена");
+
+            if (answer != MessageBoxResult.Yes)
+            {
+                return;
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "steam://gameproperties/" + SteamLocator.ConanAppId,
+                    UseShellExecute = true
+                });
+                AppendLog("Открыты свойства Conan Exiles в Steam для смены версии.");
+            }
+            catch (Exception ex)
+            {
+                ShowError("Не удалось открыть Steam:\n" + ex.Message);
             }
         }
 
@@ -595,14 +644,17 @@ namespace RealmLauncher
             var isNews = tab == "news";
             var isLog = tab == "log";
             var isMods = tab == "mods";
+            var isActions = tab == "actions";
 
             rtbNewsBox.Visibility = isNews ? Visibility.Visible : Visibility.Collapsed;
             logPane.Visibility = isLog ? Visibility.Visible : Visibility.Collapsed;
             modsPane.Visibility = isMods ? Visibility.Visible : Visibility.Collapsed;
+            actionsPane.Visibility = isActions ? Visibility.Visible : Visibility.Collapsed;
 
             btnTabNews.Tag = isNews ? "active" : null;
             btnTabLog.Tag = isLog ? "active" : null;
             btnTabMods.Tag = isMods ? "active" : null;
+            btnTabActions.Tag = isActions ? "active" : null;
 
             btnRefreshNews.Visibility = isNews ? Visibility.Visible : Visibility.Collapsed;
             btnClearLog.Visibility = isLog ? Visibility.Visible : Visibility.Collapsed;
@@ -637,6 +689,11 @@ namespace RealmLauncher
         private void BtnTabMods_OnClick(object sender, RoutedEventArgs e)
         {
             ShowModsTab();
+        }
+
+        private void BtnTabActions_OnClick(object sender, RoutedEventArgs e)
+        {
+            SelectPanelTab("actions");
         }
 
         private void BtnWebsite_OnClick(object sender, RoutedEventArgs e)
@@ -778,6 +835,272 @@ namespace RealmLauncher
         private void BtnOpenDiscord_OnClick(object sender, RoutedEventArgs e)
         {
             OpenExternalUrl(AppRuntimeConfig.DiscordInviteUrl, "DiscordInviteUrl");
+        }
+
+        private sealed class GalleryShot
+        {
+            public string Title;
+            public string Author;
+            public string PreviewUrl;
+            public string FallbackUrl;
+        }
+
+        private async Task LoadGalleryAsync()
+        {
+            try
+            {
+                var uri = UrlSecurity.RequireAllowedHttpsUrl(
+                    AppRuntimeConfig.GalleryApiUrl, _allowedHosts, "GalleryApiUrl");
+                var json = await _httpClient.GetStringAsync(uri);
+                var items = JObject.Parse(json)["items"] as JArray;
+                if (items == null)
+                {
+                    return;
+                }
+
+                foreach (var item in items.OfType<JObject>())
+                {
+                    var preview = AbsoluteGalleryUrl(item.Value<string>("thumbUrl"))
+                                  ?? AbsoluteGalleryUrl(item.Value<string>("url"));
+                    if (preview == null)
+                    {
+                        continue;
+                    }
+
+                    // The site stores previews as WebP, which older Windows cannot
+                    // decode; the untouched upload is a normal PNG or JPEG.
+                    var original = item["original"] as JObject;
+                    var fallback = original != null ? AbsoluteGalleryUrl(original.Value<string>("url")) : null;
+
+                    var author = item["author"] as JObject;
+
+                    _galleryShots.Add(new GalleryShot
+                    {
+                        Title = item.Value<string>("title"),
+                        Author = author != null ? author.Value<string>("displayName") : null,
+                        PreviewUrl = preview,
+                        FallbackUrl = fallback
+                    });
+                }
+
+                if (_galleryShots.Count == 0)
+                {
+                    return;
+                }
+
+                galleryCard.Visibility = Visibility.Visible;
+                ShowNextGalleryShot();
+
+                if (_galleryShots.Count > 1)
+                {
+                    _galleryTimer.Start();
+                }
+            }
+            catch (Exception ex)
+            {
+                AppendLog("Галерея недоступна: " + ex.Message);
+            }
+        }
+
+        private static string AbsoluteGalleryUrl(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return null;
+            }
+
+            return path.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+                ? path
+                : AppRuntimeConfig.WebsiteUrl.TrimEnd('/') + "/" + path.TrimStart('/');
+        }
+
+        private void ShowNextGalleryShot()
+        {
+            ShowGalleryShot(_galleryIndex + 1);
+        }
+
+        private void ShowGalleryShot(int index)
+        {
+            if (_galleryShots.Count == 0)
+            {
+                return;
+            }
+
+            var count = _galleryShots.Count;
+            _galleryIndex = ((index % count) + count) % count;
+            var shot = _galleryShots[_galleryIndex];
+
+            var next = LoadGalleryImage(shot.PreviewUrl, shot.FallbackUrl);
+            if (next == null)
+            {
+                return;
+            }
+
+            // Caption and picture must change together, so wait for the bytes
+            // before fading: otherwise the fade ends on a frame still loading.
+            if (next.IsDownloading)
+            {
+                EventHandler onReady = null;
+                onReady = (sender, args) =>
+                {
+                    next.DownloadCompleted -= onReady;
+                    CrossFadeGalleryTo(next, shot);
+                };
+                next.DownloadCompleted += onReady;
+                return;
+            }
+
+            CrossFadeGalleryTo(next, shot);
+        }
+
+        private void CrossFadeGalleryTo(BitmapImage image, GalleryShot shot)
+        {
+            txtGalleryTitle.Text = string.IsNullOrWhiteSpace(shot.Title) ? "REALM" : shot.Title;
+            txtGalleryAuthor.Text = string.IsNullOrWhiteSpace(shot.Author) ? string.Empty : "· " + shot.Author;
+            txtGalleryAuthor.Visibility = string.IsNullOrWhiteSpace(shot.Author)
+                ? Visibility.Collapsed
+                : Visibility.Visible;
+            txtGalleryCounter.Text = string.Format("{0} из {1}", _galleryIndex + 1, _galleryShots.Count);
+            UpdateGalleryDots();
+
+            if (imgGalleryBack.Source == null)
+            {
+                imgGalleryBack.Source = image;
+                return;
+            }
+
+            imgGalleryFront.Source = image;
+
+            var fade = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(420))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseInOut }
+            };
+            fade.Completed += (sender, args) =>
+            {
+                imgGalleryBack.Source = image;
+                imgGalleryFront.BeginAnimation(OpacityProperty, null);
+                imgGalleryFront.Opacity = 0;
+            };
+            imgGalleryFront.BeginAnimation(OpacityProperty, fade);
+        }
+
+        private void UpdateGalleryDots()
+        {
+            if (galleryDots.Items.Count != _galleryShots.Count)
+            {
+                galleryDots.Items.Clear();
+                for (var i = 0; i < _galleryShots.Count; i++)
+                {
+                    var position = i;
+                    var dot = new Border
+                    {
+                        Width = 8,
+                        Height = 8,
+                        Margin = new Thickness(4, 0, 4, 0),
+                        CornerRadius = new CornerRadius(4),
+                        Cursor = Cursors.Hand
+                    };
+                    dot.MouseLeftButtonUp += (s, e) =>
+                    {
+                        RestartGalleryTimer();
+                        ShowGalleryShot(position);
+                    };
+                    galleryDots.Items.Add(dot);
+                }
+            }
+
+            for (var i = 0; i < galleryDots.Items.Count; i++)
+            {
+                var dot = galleryDots.Items[i] as Border;
+                if (dot == null)
+                {
+                    continue;
+                }
+
+                var active = i == _galleryIndex;
+                dot.Background = active
+                    ? ThemeBrush("AccentBrush", "#D9903F")
+                    : ThemeBrush("StrokeStrongBrush", "#4A3826");
+                dot.Width = active ? 18 : 8;
+            }
+        }
+
+        private void RestartGalleryTimer()
+        {
+            if (_galleryTimer == null || _galleryShots.Count < 2)
+            {
+                return;
+            }
+
+            _galleryTimer.Stop();
+            _galleryTimer.Start();
+        }
+
+        private void BtnGalleryPrev_OnClick(object sender, RoutedEventArgs e)
+        {
+            RestartGalleryTimer();
+            ShowGalleryShot(_galleryIndex - 1);
+        }
+
+        private void BtnGalleryNext_OnClick(object sender, RoutedEventArgs e)
+        {
+            RestartGalleryTimer();
+            ShowGalleryShot(_galleryIndex + 1);
+        }
+
+        private BitmapImage LoadGalleryImage(string url, string fallbackUrl)
+        {
+            try
+            {
+                var uri = UrlSecurity.RequireAllowedHttpsUrl(url, _allowedHosts, "GalleryImage");
+
+                var image = new BitmapImage();
+                image.BeginInit();
+                image.CacheOption = BitmapCacheOption.OnLoad;
+                image.DecodePixelWidth = 520;
+                image.UriSource = uri;
+                image.EndInit();
+
+                if (!string.IsNullOrWhiteSpace(fallbackUrl))
+                {
+                    EventHandler<ExceptionEventArgs> onFailed = null;
+                    onFailed = (sender, args) =>
+                    {
+                        image.DownloadFailed -= onFailed;
+                        image.DecodeFailed -= onFailed;
+
+                        // WebP may be undecodable here: swap in the plain upload.
+                        var replacement = LoadGalleryImage(fallbackUrl, null);
+                        if (replacement == null)
+                        {
+                            return;
+                        }
+
+                        if (ReferenceEquals(imgGalleryFront.Source, image))
+                        {
+                            imgGalleryFront.Source = replacement;
+                        }
+
+                        if (ReferenceEquals(imgGalleryBack.Source, image))
+                        {
+                            imgGalleryBack.Source = replacement;
+                        }
+                    };
+                    image.DownloadFailed += onFailed;
+                    image.DecodeFailed += onFailed;
+                }
+
+                return image;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private void GalleryImage_OnClick(object sender, MouseButtonEventArgs e)
+        {
+            OpenExternalUrl(AppRuntimeConfig.GalleryPageUrl, "GalleryPage");
         }
 
         private void OpenExternalUrl(string url, string label)
@@ -1120,9 +1443,71 @@ namespace RealmLauncher
             return true;
         }
 
+        private static readonly string[] MarkupMarkers = { "**", "__", "~~", "*" };
+
+        // Discord-style markup, so news written for Discord reads the same here.
         private void AddTextWithEmojiInlines(InlineCollection inlines, string text, double emojiSize)
         {
+            AddMarkedUpText(inlines, text, emojiSize, false, false, false, false);
+        }
+
+        private void AddMarkedUpText(
+            InlineCollection inlines, string text, double emojiSize,
+            bool bold, bool italic, bool underline, bool strike)
+        {
             if (inlines == null || string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            var position = int.MaxValue;
+            string marker = null;
+            var close = -1;
+
+            foreach (var candidate in MarkupMarkers)
+            {
+                var open = text.IndexOf(candidate, StringComparison.Ordinal);
+                if (open < 0 || open >= position)
+                {
+                    continue;
+                }
+
+                var end = text.IndexOf(candidate, open + candidate.Length, StringComparison.Ordinal);
+                if (end <= open + candidate.Length)
+                {
+                    continue;
+                }
+
+                position = open;
+                marker = candidate;
+                close = end;
+            }
+
+            if (marker == null)
+            {
+                AddStyledRuns(inlines, text, emojiSize, bold, italic, underline, strike);
+                return;
+            }
+
+            AddStyledRuns(inlines, text.Substring(0, position), emojiSize, bold, italic, underline, strike);
+
+            var inner = text.Substring(position + marker.Length, close - position - marker.Length);
+            AddMarkedUpText(
+                inlines, inner, emojiSize,
+                bold || marker == "**",
+                italic || marker == "*",
+                underline || marker == "__",
+                strike || marker == "~~");
+
+            AddMarkedUpText(
+                inlines, text.Substring(close + marker.Length), emojiSize, bold, italic, underline, strike);
+        }
+
+        private void AddStyledRuns(
+            InlineCollection inlines, string text, double emojiSize,
+            bool bold, bool italic, bool underline, bool strike)
+        {
+            if (string.IsNullOrEmpty(text))
             {
                 return;
             }
@@ -1136,12 +1521,7 @@ namespace RealmLauncher
                 InlineUIContainer emojiInline;
                 if (TryCreateEmojiInline(element, emojiSize, out emojiInline))
                 {
-                    if (buffer.Length > 0)
-                    {
-                        inlines.Add(new Run(buffer.ToString()));
-                        buffer.Clear();
-                    }
-
+                    FlushRun(inlines, buffer, bold, italic, underline, strike);
                     inlines.Add(emojiInline);
                     continue;
                 }
@@ -1149,22 +1529,103 @@ namespace RealmLauncher
                 buffer.Append(element);
             }
 
-            if (buffer.Length > 0)
+            FlushRun(inlines, buffer, bold, italic, underline, strike);
+        }
+
+        private static void FlushRun(
+            InlineCollection inlines, StringBuilder buffer,
+            bool bold, bool italic, bool underline, bool strike)
+        {
+            if (buffer.Length == 0)
             {
-                inlines.Add(new Run(buffer.ToString()));
+                return;
             }
+
+            var run = new Run(buffer.ToString());
+            buffer.Clear();
+
+            if (bold)
+            {
+                run.FontWeight = FontWeights.Bold;
+            }
+
+            if (italic)
+            {
+                run.FontStyle = FontStyles.Italic;
+            }
+
+            if (underline || strike)
+            {
+                var decorations = new TextDecorationCollection();
+                if (underline)
+                {
+                    decorations.Add(TextDecorations.Underline);
+                }
+
+                if (strike)
+                {
+                    decorations.Add(TextDecorations.Strikethrough);
+                }
+
+                run.TextDecorations = decorations;
+            }
+
+            inlines.Add(run);
+        }
+
+        private const string TwemojiBaseUrl = "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/";
+
+        private static bool IsEmojiCodePoint(int cp)
+        {
+            if (cp >= 0x1F000 && cp <= 0x1FAFF) return true;   // pictographs, faces, objects
+            if (cp >= 0x2600 && cp <= 0x27BF) return true;     // misc symbols and dingbats
+            if (cp >= 0x2B00 && cp <= 0x2BFF) return true;     // stars, arrows-in-boxes
+            return cp == 0x2139 || cp == 0x2049 || cp == 0x203C || cp == 0x2122 ||
+                   cp == 0x24C2 || cp == 0x3030 || cp == 0x303D || cp == 0x3297 || cp == 0x3299;
+        }
+
+        // Twemoji names a file after its code points, dropping the variation
+        // selector except on keycaps. Building the name beats a hand-kept list.
+        private static bool TryGetEmojiUrl(string element, out string url)
+        {
+            url = null;
+            if (string.IsNullOrEmpty(element))
+            {
+                return false;
+            }
+
+            var points = new List<int>();
+            var isEmoji = false;
+            for (var i = 0; i < element.Length; i += char.IsSurrogatePair(element, i) ? 2 : 1)
+            {
+                var cp = char.ConvertToUtf32(element, i);
+                points.Add(cp);
+                if (IsEmojiCodePoint(cp))
+                {
+                    isEmoji = true;
+                }
+            }
+
+            if (!isEmoji)
+            {
+                return false;
+            }
+
+            var keycap = points.Contains(0x20E3);
+            var names = points
+                .Where(cp => keycap || cp != 0xFE0F)
+                .Select(cp => cp.ToString("x"));
+
+            url = TwemojiBaseUrl + string.Join("-", names) + ".png";
+            return true;
         }
 
         private bool TryCreateEmojiInline(string element, double size, out InlineUIContainer inline)
         {
             inline = null;
-            if (string.IsNullOrWhiteSpace(element))
-            {
-                return false;
-            }
 
             string url;
-            if (!EmojiIconUrls.TryGetValue(element, out url))
+            if (!TryGetEmojiUrl(element, out url))
             {
                 return false;
             }
@@ -1175,18 +1636,35 @@ namespace RealmLauncher
                 return false;
             }
 
-            inline = new InlineUIContainer(new Image
+            var image = new Image
             {
                 Width = size,
                 Height = size,
                 Stretch = Stretch.Uniform,
                 Margin = new Thickness(0, -2, 0, -2),
                 Source = source
-            })
+            };
+
+            var container = new InlineUIContainer(image)
             {
                 BaselineAlignment = BaselineAlignment.TextBottom
             };
 
+            // Twemoji may not carry this glyph: show the character instead of a gap.
+            if (source.IsDownloading)
+            {
+                EventHandler<ExceptionEventArgs> onFailed = null;
+                onFailed = (sender, args) =>
+                {
+                    source.DownloadFailed -= onFailed;
+                    source.DecodeFailed -= onFailed;
+                    container.Child = new TextBlock { Text = element, FontSize = size * 0.9 };
+                };
+                source.DownloadFailed += onFailed;
+                source.DecodeFailed += onFailed;
+            }
+
+            inline = container;
             return true;
         }
 
@@ -1333,6 +1811,9 @@ namespace RealmLauncher
                     AppendLog("modlist.txt обновлён: " + modListPath);
                     SetProgress(StageModlistDone, "modlist.txt обновлён.");
 
+                    GameConfigService.SetIntroMoviesDisabled(
+                        gamePath, chkSkipIntro.IsChecked == true, AppendLog);
+
                     SetStatus("Запуск игры и подключение к серверу...");
                     _launcherService.LaunchServerConnection(
                         gamePath, config.Name, config.Ip, config.GamePassword,
@@ -1405,7 +1886,6 @@ namespace RealmLauncher
             _isBusy = busy;
 
             txtConanExe.IsEnabled = !busy;
-            txtServerPassword.IsEnabled = !busy;
             chkAutoSubscribe.IsEnabled = !busy;
             chkBattlEye.IsEnabled = !busy;
             chkNotifyOnline.IsEnabled = !busy;
@@ -2209,28 +2689,70 @@ namespace RealmLauncher
             return AskYesNo(message, "Обновление модов");
         }
 
-        private bool ValidateServerPassword(ServerConfig config)
+        private void ApplyServerPasswordRequirement(bool required)
         {
-            var entered = txtServerPassword.Password ?? string.Empty;
+            _serverRequiresPassword = required;
+        }
+
+        private static bool PasswordMatches(string candidate, ServerConfig config)
+        {
+            var value = candidate ?? string.Empty;
+
             if (!string.IsNullOrWhiteSpace(config.PasswordSha256))
             {
-                var enteredHash = ComputeSha256(entered);
-                if (!string.Equals(enteredHash, config.PasswordSha256.Trim(), StringComparison.OrdinalIgnoreCase))
-                {
-                    ShowWarning("Неверный пароль сервера.");
-                    return false;
-                }
+                return string.Equals(
+                    ComputeSha256(value), config.PasswordSha256.Trim(), StringComparison.OrdinalIgnoreCase);
             }
-            else if (!string.IsNullOrWhiteSpace(config.Password))
+
+            if (!string.IsNullOrWhiteSpace(config.Password))
             {
-                if (!string.Equals(entered, config.Password, StringComparison.Ordinal))
-                {
-                    ShowWarning("Неверный пароль сервера.");
-                    return false;
-                }
+                return string.Equals(value, config.Password, StringComparison.Ordinal);
             }
 
             return true;
+        }
+
+        // Asked for only when the server actually wants one, and only when the
+        // saved password no longer fits — so a changed password re-prompts.
+        private bool ValidateServerPassword(ServerConfig config)
+        {
+            if (_serverRequiresPassword == false)
+            {
+                return true;
+            }
+
+            if (string.IsNullOrWhiteSpace(config.PasswordSha256) && string.IsNullOrWhiteSpace(config.Password))
+            {
+                return true;
+            }
+
+            if (PasswordMatches(_settings.GetServerPassword(), config))
+            {
+                return true;
+            }
+
+            var error = string.IsNullOrEmpty(_settings.GetServerPassword())
+                ? null
+                : "Сохранённый пароль больше не подходит — возможно, его сменили.";
+
+            while (true)
+            {
+                string entered;
+                if (!PasswordDialog.TryAsk(this, error, out entered))
+                {
+                    AppendLog("Запуск отменён: пароль сервера не введён.");
+                    return false;
+                }
+
+                if (PasswordMatches(entered, config))
+                {
+                    _settings.SetServerPassword(entered);
+                    SaveSettings();
+                    return true;
+                }
+
+                error = "Неверный пароль. Попробуйте ещё раз.";
+            }
         }
 
         private static string ComputeSha256(string input)
@@ -2396,6 +2918,7 @@ namespace RealmLauncher
                         _lastServerOnline = true;
                         _lastPlayers = serverInfo.Players;
                         _lastMaxPlayers = serverInfo.MaxPlayers;
+                        ApplyServerPasswordRequirement(serverInfo.RequiresPassword);
 
                         SetServerStatusUi("Онлайн",
                             string.Format("{0}/{1}", serverInfo.Players, serverInfo.MaxPlayers),
@@ -2582,6 +3105,24 @@ namespace RealmLauncher
                 button.Click += (s, e) => OpenExternalUrl(url, "ServerLink");
                 linksHost.Items.Add(button);
             }
+        }
+
+        private void IntroMoviesOption_OnChanged(object sender, RoutedEventArgs e)
+        {
+            if (_settings == null)
+            {
+                return;
+            }
+
+            SaveSettings();
+
+            var gamePath = (txtConanExe.Text ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(gamePath) || !File.Exists(gamePath))
+            {
+                return;
+            }
+
+            GameConfigService.SetIntroMoviesDisabled(gamePath, chkSkipIntro.IsChecked == true, AppendLog);
         }
 
         private void DiscordStatusOption_OnChanged(object sender, RoutedEventArgs e)

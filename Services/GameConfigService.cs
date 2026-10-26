@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -272,6 +272,88 @@ namespace RealmLauncher.Services
 
             lines.Insert(insertAt, entry);
             return true;
+        }
+
+        // Enhanced plays its splashes from a Blueprint, not through the engine's
+        // StartupMovies setting, so the only way to skip them is to move the files.
+        private static readonly string[] IntroMovieNames =
+        {
+            "Exiles Cinematic Intro",
+            "Funcom Splash",
+            "Inflexion_Logo",
+            "Inflexion_Logo_1080",
+            "Intro_Cinematic_Siptah",
+            "Nvidia_Splash",
+            "Splash_Inflexion",
+            "StartupNvidia",
+            "StartupUnreal"
+        };
+
+        private const string DisabledMovieSuffix = ".bk2.bak";
+
+        public static void SetIntroMoviesDisabled(string conanExePath, bool disable, Action<string> log)
+        {
+            string moviesDirectory;
+            try
+            {
+                moviesDirectory = Path.Combine(ResolveSandboxDirectory(conanExePath), "Content", "Movies");
+            }
+            catch (InvalidOperationException)
+            {
+                return;
+            }
+
+            if (!Directory.Exists(moviesDirectory))
+            {
+                return;
+            }
+
+            var changed = 0;
+            var failed = 0;
+
+            foreach (var name in IntroMovieNames)
+            {
+                var active = Path.Combine(moviesDirectory, name + ".bk2");
+                var disabled = Path.Combine(moviesDirectory, name + DisabledMovieSuffix);
+
+                try
+                {
+                    if (disable)
+                    {
+                        if (File.Exists(active) && !File.Exists(disabled))
+                        {
+                            File.Move(active, disabled);
+                            changed++;
+                        }
+                    }
+                    else if (File.Exists(disabled) && !File.Exists(active))
+                    {
+                        File.Move(disabled, active);
+                        changed++;
+                    }
+                }
+                catch (IOException)
+                {
+                    failed++;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    failed++;
+                }
+            }
+
+            if (changed > 0)
+            {
+                log?.Invoke(disable
+                    ? string.Format("Вступительные ролики отключены ({0} файл(ов)).", changed)
+                    : string.Format("Вступительные ролики возвращены ({0} файл(ов)).", changed));
+            }
+
+            if (failed > 0)
+            {
+                log?.Invoke(string.Format(
+                    "Не удалось переименовать {0} файл(ов) заставок — закройте игру и попробуйте снова.", failed));
+            }
         }
 
         public static string GetServerModListPath(string conanExePath)

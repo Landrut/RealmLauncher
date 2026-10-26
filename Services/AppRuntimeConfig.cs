@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace RealmLauncher.Services
 {
@@ -11,6 +11,8 @@ namespace RealmLauncher.Services
         public const string ServerConfigUrl = "https://gist.githubusercontent.com/Landrut/b14952dd01f52b9267c1bad84faedc75/raw/realm-roleplay.json";
         public const string DiscordInviteUrl = "https://discord.gg/Vw26qw4spu";
         public const string WebsiteUrl = "https://realm-rp.com/";
+        public const string GalleryPageUrl = "https://realm-rp.com/gallery";
+        public const string GalleryApiUrl = "https://realm-rp.com/api/gallery?limit=12&sort=random";
         public const string UpdateManifestUrl = "https://gist.githubusercontent.com/Landrut/052e98e840a62835505698c8d409b1fd/raw/update-manifest.json";
         public const string NewsFeedUrl = "https://gist.githubusercontent.com/Landrut/17bf997f7774832f976296f2f136a577/raw/news-feed.json";
 

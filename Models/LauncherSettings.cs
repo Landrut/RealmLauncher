@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
@@ -21,6 +21,7 @@ namespace RealmLauncher.Models
         public bool LaunchWithBattlEye { get; set; }
         public bool NotifyWhenServerOnline { get; set; }
         public bool ShowDiscordStatus { get; set; }
+        public bool SkipIntroMovies { get; set; }
 
         public bool DeveloperMode { get; set; }
 
