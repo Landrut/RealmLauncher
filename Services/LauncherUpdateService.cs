@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -232,19 +234,28 @@ namespace RealmLauncher.Services
             var scriptPath = Path.Combine(tempRoot, "apply_update.cmd");
             var pid = Process.GetCurrentProcess().Id;
 
+            var encoding = GetScriptEncoding();
+            var extractDirForScript = ToScriptPath(extractDir, encoding);
+            var appDirForScript = ToScriptPath(appDir, encoding);
+            var currentExeForScript = ToScriptPath(currentExe, encoding);
+
             var script = new StringBuilder();
             script.AppendLine("@echo off");
             script.AppendLine("setlocal");
+            script.AppendLine(string.Format("chcp {0} >nul", encoding.CodePage));
             script.AppendLine(":waitloop");
             script.AppendLine(string.Format("tasklist /FI \"PID eq {0}\" | find \"{0}\" >nul", pid));
             script.AppendLine("if not errorlevel 1 (");
             script.AppendLine("  timeout /t 1 /nobreak >nul");
             script.AppendLine("  goto waitloop");
             script.AppendLine(")");
-            script.AppendLine(string.Format("xcopy /E /Y /I \"{0}\\*\" \"{1}\\\" >nul", extractDir, appDir));
-            script.AppendLine(string.Format("start \"\" \"{0}\"", currentExe));
+            script.AppendLine(string.Format(
+                "xcopy /E /Y /I \"{0}\\*\" \"{1}\\\" >nul", extractDirForScript, appDirForScript));
+            script.AppendLine(string.Format("start \"\" \"{0}\"", currentExeForScript));
             script.AppendLine("endlocal");
-            File.WriteAllText(scriptPath, script.ToString(), Encoding.ASCII);
+            // cmd.exe reads the script in the console code page, so ASCII used to turn
+            // every non-Latin character of the install path into "?".
+            File.WriteAllText(scriptPath, script.ToString(), encoding);
 
             Process.Start(new ProcessStartInfo
             {
@@ -253,6 +264,75 @@ namespace RealmLauncher.Services
                 UseShellExecute = false,
                 CreateNoWindow = true
             });
+        }
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern int GetShortPathName(string longPath, StringBuilder shortPath, int bufferSize);
+
+        private static Encoding GetScriptEncoding()
+        {
+            try
+            {
+                return Encoding.GetEncoding(CultureInfo.CurrentCulture.TextInfo.OEMCodePage);
+            }
+            catch (ArgumentException)
+            {
+                return Encoding.Default;
+            }
+            catch (NotSupportedException)
+            {
+                return Encoding.Default;
+            }
+        }
+
+        private static bool SurvivesEncoding(string value, Encoding encoding)
+        {
+            return string.Equals(encoding.GetString(encoding.GetBytes(value)), value, StringComparison.Ordinal);
+        }
+
+        private static bool IsAscii(string value)
+        {
+            foreach (var c in value)
+            {
+                if (c > 127)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static string ToScriptPath(string path, Encoding encoding)
+        {
+            if (string.IsNullOrEmpty(path) || IsAscii(path))
+            {
+                return path;
+            }
+
+            // An 8.3 name is always ASCII, so the script survives whatever code page
+            // cmd.exe starts in.
+            var buffer = new StringBuilder(32768);
+            var length = GetShortPathName(path, buffer, buffer.Capacity);
+            if (length > 0 && length < buffer.Capacity)
+            {
+                var shortPath = buffer.ToString();
+                if (IsAscii(shortPath))
+                {
+                    return shortPath;
+                }
+            }
+
+            // No short name available: rely on the chcp line written into the script.
+            if (SurvivesEncoding(path, encoding))
+            {
+                return path;
+            }
+
+            throw new InvalidOperationException(
+                "Путь к лаунчеру содержит символы, которые не поддерживает командная строка Windows:" +
+                Environment.NewLine + path + Environment.NewLine + Environment.NewLine +
+                "Переместите лаунчер в папку с латинским именем и обновите снова.");
         }
 
         private static Version ParseVersionLoose(string raw)
