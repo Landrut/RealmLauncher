@@ -1,9 +1,10 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 namespace RealmLauncher.Models
 {
     public static class ModStatus
     {
+        public const string NotChecked = "Не проверен";
         public const string UpToDate = "Актуален";
         public const string Outdated = "Устарел";
         public const string Missing = "Отсутствует";

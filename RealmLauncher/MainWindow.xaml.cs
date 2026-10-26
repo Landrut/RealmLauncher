@@ -1,4 +1,4 @@
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using RealmLauncher.Models;
 using RealmLauncher.Services;
 using RealmLauncher.Theme;
@@ -54,6 +54,7 @@ namespace RealmLauncher
         private readonly OnlineHistory _onlineHistory = new OnlineHistory();
         private readonly DiscordRichPresence _discord = new DiscordRichPresence(AppRuntimeConfig.DiscordApplicationId);
         private readonly ObservableCollection<ModUpdateInfo> _mods = new ObservableCollection<ModUpdateInfo>();
+        private bool _modListPopulated;
 
         private readonly HttpClient _httpClient = new HttpClient
         {
@@ -1431,8 +1432,43 @@ namespace RealmLauncher
             spinnerPanel.Visibility = spinner;
         }
 
+        private void PopulateModListFromConfig(ServerConfig config)
+        {
+            if (_modListPopulated || config == null || config.Mods == null || config.Mods.Count == 0)
+            {
+                return;
+            }
+
+            _mods.Clear();
+            foreach (var entry in config.Mods)
+            {
+                var parts = (entry ?? string.Empty).Split(new[] { '/' }, 2);
+                if (parts.Length != 2)
+                {
+                    continue;
+                }
+
+                _mods.Add(new ModUpdateInfo
+                {
+                    ModId = parts[0],
+                    PakName = parts[1],
+                    Status = ModStatus.NotChecked
+                });
+            }
+
+            if (_mods.Count == 0)
+            {
+                return;
+            }
+
+            _modListPopulated = true;
+            txtModsPlaceholder.Visibility = Visibility.Collapsed;
+            btnTabMods.Content = "Моды " + _mods.Count;
+        }
+
         private void PopulateModList(ModUpdateAnalysis analysis)
         {
+            _modListPopulated = true;
             _mods.Clear();
             foreach (var mod in analysis.All)
             {
@@ -1538,7 +1574,8 @@ namespace RealmLauncher
 
         private void RestoreDevModList()
         {
-            if (_settings == null || _settings.DevModList == null || _settings.DevModList.Count == 0)
+            if (_settings == null || !_settings.DeveloperMode ||
+                _settings.DevModList == null || _settings.DevModList.Count == 0)
             {
                 return;
             }
@@ -1556,7 +1593,7 @@ namespace RealmLauncher
                 {
                     ModId = parts[0],
                     PakName = parts[1],
-                    Status = ModStatus.UpToDate
+                    Status = ModStatus.NotChecked
                 });
             }
 
@@ -1564,6 +1601,7 @@ namespace RealmLauncher
             {
                 txtModsPlaceholder.Visibility = Visibility.Collapsed;
                 btnTabMods.Content = "Моды " + _mods.Count;
+                _modListPopulated = true;
             }
         }
 
@@ -2342,6 +2380,7 @@ namespace RealmLauncher
                 {
                     var config = await GetServerConfigAsync(false, cts.Token);
                     RebuildLinks(config);
+                    PopulateModListFromConfig(config);
 
                     var host = ExtractHost(config.Ip);
                     var queryPort = config.QueryPort ?? AppRuntimeConfig.DefaultQueryPort;
