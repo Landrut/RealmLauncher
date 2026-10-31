@@ -296,17 +296,28 @@
                                                 <TextBlock Text="ЖУРНАЛ ЛАУНЧЕРА"
                                                            Margin="0,20,0,0"
                                                            Style="{DynamicResource CardTitleStyle}"/>
-                                                <Button x:Name="btnCopyLog"
-                                                        Margin="0,10,0,0"
-                                                        Height="38"
-                                                        HorizontalAlignment="Left"
-                                                        Padding="20,0"
-                                                        Content="Скопировать журнал"
-                                                        Style="{DynamicResource SecondaryButtonStyle}"
-                                                        Click="BtnCopyLog_OnClick"/>
+                                                <Grid Margin="0,10,0,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="10"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <Button x:Name="btnCopyLog"
+                                                            Grid.Column="0"
+                                                            Height="38"
+                                                            Content="Скопировать журнал"
+                                                            Style="{DynamicResource SecondaryButtonStyle}"
+                                                            Click="BtnCopyLog_OnClick"/>
+                                                    <Button x:Name="btnOpenLauncherLog"
+                                                            Grid.Column="2"
+                                                            Height="38"
+                                                            Content="Файл журнала"
+                                                            Style="{DynamicResource SecondaryButtonStyle}"
+                                                            Click="BtnOpenLauncherLog_OnClick"/>
+                                                </Grid>
                                                 <TextBlock Margin="0,8,0,0"
                                                            Style="{DynamicResource HintTextStyle}"
-                                                           Text="Копирует содержимое вкладки «Журнал» в буфер обмена — удобно приложить к сообщению об ошибке."/>
+                                                           Text="Журнал пишется и в файл, поэтому его можно приложить к сообщению даже после перезапуска лаунчера. Хранятся журналы за последние 7 дней."/>
                                             </StackPanel>
                                         </ScrollViewer>
 

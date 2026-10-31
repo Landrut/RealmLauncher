@@ -1623,6 +1623,29 @@ namespace RealmLauncher
             OpenFolder(Path.GetDirectoryName(path));
         }
 
+        private void BtnOpenLauncherLog_OnClick(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var file = FileLog.CurrentPath;
+                if (!string.IsNullOrEmpty(file) && File.Exists(file))
+                {
+                    Process.Start(new ProcessStartInfo("explorer.exe", "/select,\"" + file + "\"")
+                    {
+                        UseShellExecute = true
+                    });
+                    return;
+                }
+
+                Directory.CreateDirectory(FileLog.Directory);
+                Process.Start(new ProcessStartInfo(FileLog.Directory) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                ShowWarning("Не удалось открыть папку журналов:\n" + ex.Message);
+            }
+        }
+
         private void BtnOpenLogs_OnClick(object sender, RoutedEventArgs e)
         {
             var path = (txtConanExe.Text ?? string.Empty).Trim();
@@ -3882,6 +3905,10 @@ namespace RealmLauncher
 
         private void AppendLog(string line)
         {
+            // Straight to disk first: the lines written while the window is closing are
+            // exactly the ones worth having afterwards.
+            FileLog.Write(line);
+
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (_isClosing)

@@ -162,6 +162,12 @@
     <Compile Include="..\Services\TotCustomPresets.cs">
       <Link>Services\TotCustomPresets.cs</Link>
     </Compile>
+    <Compile Include="..\Services\FileLog.cs">
+      <Link>Services\FileLog.cs</Link>
+    </Compile>
+    <Compile Include="..\Services\SingleInstance.cs">
+      <Link>Services\SingleInstance.cs</Link>
+    </Compile>
     <Compile Include="..\Services\GameConfigService.cs">
       <Link>Services\GameConfigService.cs</Link>
     </Compile>
