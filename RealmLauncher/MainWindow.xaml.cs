@@ -680,6 +680,8 @@ namespace RealmLauncher
                 return;
             }
 
+            var presetNote = SyncPresetsOnSwitch(FindInstallByDirectory(activeDirectory), install);
+
             txtConanExe.Text = install.ExePath;
             if (_settings != null)
             {
@@ -693,10 +695,94 @@ namespace RealmLauncher
             AppendLog("Версия игры переключена на " + name + ": " + install.InstallDirectory);
             ShowInfo(
                 "Лаунчер переключился на версию " + name + ".\n\n" + install.InstallDirectory +
+                presetNote +
                 (target == GameEdition.Legacy
                     ? "\n\nНа REALM на этой версии зайти не получится — вернитесь на Enhanced перед игрой у нас."
                     : string.Empty),
                 "Версия игры");
+        }
+
+        private EditionInstall FindInstallByDirectory(string directory)
+        {
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                return null;
+            }
+
+            foreach (var install in GameEditions.All(_editions))
+            {
+                if (string.Equals(install.InstallDirectory, directory, StringComparison.OrdinalIgnoreCase))
+                {
+                    return install;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Carries TotCustom appearances over to the build being activated. Adding files the
+        /// other side never had cannot lose anything and happens quietly; replacing a file
+        /// the player also edited there is always their call, and the old files are kept.
+        /// </summary>
+        private string SyncPresetsOnSwitch(EditionInstall source, EditionInstall target)
+        {
+            PresetSyncPlan plan;
+            try
+            {
+                plan = TotCustomPresets.Plan(source, target);
+            }
+            catch (Exception ex)
+            {
+                AppendLog("Не удалось сверить внешности TotCustom: " + ex.Message);
+                return string.Empty;
+            }
+
+            if (!plan.HasWork)
+            {
+                return string.Empty;
+            }
+
+            var sourceName = GameEditions.DisplayName(plan.SourceEdition);
+            var targetName = GameEditions.DisplayName(plan.TargetEdition);
+
+            if (plan.NeedsConfirmation)
+            {
+                var message =
+                    "Внешности TotCustom на двух версиях разошлись.\n\n" +
+                    sourceName + ": " + TotCustomPresets.Describe(plan.Source) + "\n" +
+                    targetName + ": " + TotCustomPresets.Describe(plan.Target) + "\n\n" +
+                    "Перенести внешности с " + sourceName + " на " + targetName + "?\n\n" +
+                    "Будет заменено файлов: " + plan.Replaced.Count + "\n" +
+                    string.Join("\n", plan.Replaced.Select(file => "   " + file)) + "\n" +
+                    (plan.Added.Count > 0 ? "Будет добавлено файлов: " + plan.Added.Count + "\n" : string.Empty) +
+                    "\nСтарые файлы " + targetName + " сохраню в резервную копию. Удалять ничего не буду.";
+
+                if (!AskYesNo(message, "Внешности TotCustom"))
+                {
+                    AppendLog("Перенос внешностей TotCustom отменён: файлы обеих версий остались как были.");
+                    return "\n\nВнешности TotCustom не переносились.";
+                }
+            }
+
+            var result = TotCustomPresets.Apply(plan, AppendLog);
+            if (!result.Ok)
+            {
+                AppendLog("ОШИБКА переноса внешностей TotCustom: " + result.Error);
+                ShowWarning(
+                    "Не удалось перенести внешности TotCustom:\n" + result.Error +
+                    "\n\nФайлы обеих версий остались на месте.",
+                    "Внешности TotCustom");
+                return string.Empty;
+            }
+
+            AppendLog(string.Format(
+                "Внешности TotCustom перенесены с {0} на {1}: {2} файл(ов).",
+                sourceName, targetName, result.Copied));
+
+            return string.Format(
+                "\n\nВнешности TotCustom перенесены с {0}: {1} файл(ов).",
+                sourceName, result.Copied);
         }
 
         // Steam has no API for changing a branch, so take the player straight to
