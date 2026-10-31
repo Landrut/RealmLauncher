@@ -93,6 +93,74 @@
 
                             <Grid Margin="0,12,0,0">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0"
+                                           Margin="0,0,10,5"
+                                           FontSize="12.5"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           Text="Enhanced:"/>
+                                <TextBlock x:Name="txtEnhancedPath" x:FieldModifier="public"
+                                           Grid.Row="0" Grid.Column="1"
+                                           Margin="0,0,0,5"
+                                           FontSize="12.5"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Text="не найдена"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0"
+                                           Margin="0,0,10,0"
+                                           FontSize="12.5"
+                                           Foreground="{DynamicResource TextMutedBrush}"
+                                           Text="Legacy:"/>
+                                <TextBlock x:Name="txtLegacyPath" x:FieldModifier="public"
+                                           Grid.Row="1" Grid.Column="1"
+                                           FontSize="12.5"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Text="не найдена"/>
+                            </Grid>
+
+                            <Border x:Name="dualInstallCallout" x:FieldModifier="public"
+                                    Margin="0,12,0,0"
+                                    Padding="13,11,13,12"
+                                    CornerRadius="8"
+                                    Background="{DynamicResource AccentSoftBrush}"
+                                    BorderBrush="{DynamicResource AccentBrush}"
+                                    BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock x:Name="txtDualInstallState" x:FieldModifier="public"
+                                               FontSize="12.5"
+                                               LineHeight="18"
+                                               TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextMutedBrush}"
+                                               Text="Две версии рядом не настроены"/>
+
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Button x:Name="btnDualInstall" x:FieldModifier="public"
+                                                Height="36"
+                                                Padding="16,0"
+                                                Content="Настроить две версии"
+                                                ToolTip="Держать Enhanced и Legacy на диске одновременно, чтобы переключение не качало игру заново."
+                                                Style="{DynamicResource PrimaryButtonStyle}"/>
+                                        <Button x:Name="btnRecheckBranch" x:FieldModifier="public"
+                                                Height="36"
+                                                Margin="8,0,0,0"
+                                                Padding="16,0"
+                                                Content="Проверить заново"
+                                                Style="{DynamicResource SecondaryButtonStyle}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Grid Margin="0,12,0,0">
+                                <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="8"/>
                                     <ColumnDefinition Width="*"/>
@@ -109,13 +177,31 @@
                                         Style="{DynamicResource SecondaryButtonStyle}"/>
                             </Grid>
 
-                            <Button x:Name="btnRecheckBranch" x:FieldModifier="public"
-                                    Margin="0,8,0,0"
-                                    Height="34"
-                                    HorizontalAlignment="Left"
-                                    Padding="18,0"
-                                    Content="Проверить версию заново"
-                                    Style="{DynamicResource SecondaryButtonStyle}"/>
+                            <TextBlock Text="Папка Legacy вручную"
+                                       Margin="0,14,0,0"
+                                       FontSize="12.5"
+                                       Foreground="{DynamicResource TextMutedBrush}"/>
+                            <TextBlock x:Name="txtCustomLegacyPath" x:FieldModifier="public"
+                                       Margin="0,4,0,0"
+                                       FontSize="12.5"
+                                       TextTrimming="CharacterEllipsis"
+                                       Visibility="Collapsed"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <Button x:Name="btnBrowseLegacyDir" x:FieldModifier="public"
+                                        Height="34"
+                                        Padding="16,0"
+                                        Content="Указать папку"
+                                        ToolTip="Нужно, если копия Legacy лежит на другом диске или вне библиотеки Steam."
+                                        Style="{DynamicResource SecondaryButtonStyle}"/>
+                                <Button x:Name="btnClearLegacyDir" x:FieldModifier="public"
+                                        Height="34"
+                                        Margin="8,0,0,0"
+                                        Padding="16,0"
+                                        Visibility="Collapsed"
+                                        Content="Сбросить"
+                                        Style="{DynamicResource SecondaryButtonStyle}"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 

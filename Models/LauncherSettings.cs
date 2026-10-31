@@ -25,6 +25,12 @@ namespace RealmLauncher.Models
 
         public bool DeveloperMode { get; set; }
 
+        /// <summary>Legacy build kept outside the Steam library, when the player put it there.</summary>
+        public string CustomLegacyGamePath { get; set; }
+
+        /// <summary>"Enhanced" or "Legacy": which build the launcher currently works with.</summary>
+        public string GameEdition { get; set; }
+
         public List<string> DevModList { get; set; }
         public bool StartMinimized { get; set; }
         public bool AutoStartWithWindows { get; set; }

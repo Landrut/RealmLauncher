@@ -73,6 +73,7 @@ namespace RealmLauncher
 
         private LauncherSettings _settings;
         private CancellationTokenSource _cts;
+        private GameEditionState _editions;
         private readonly DispatcherTimer _serverStatusTimer;
 
         private bool _isRefreshingServerStatus;
@@ -168,8 +169,11 @@ namespace RealmLauncher
             SettingsPage.chkBattlEye.Unchecked += SettingsControl_OnChanged;
             SettingsPage.chkNotifyOnline.Checked += SettingsControl_OnChanged;
             SettingsPage.chkNotifyOnline.Unchecked += SettingsControl_OnChanged;
-            SettingsPage.btnSwitchEnhanced.Click += (s, e) => OpenSteamBranchSwitch(false);
-            SettingsPage.btnSwitchLegacy.Click += (s, e) => OpenSteamBranchSwitch(true);
+            SettingsPage.btnSwitchEnhanced.Click += (s, e) => SwitchEdition(GameEdition.Enhanced);
+            SettingsPage.btnSwitchLegacy.Click += (s, e) => SwitchEdition(GameEdition.Legacy);
+            SettingsPage.btnDualInstall.Click += (s, e) => OpenDualInstallSetup();
+            SettingsPage.btnBrowseLegacyDir.Click += (s, e) => BrowseCustomLegacyDirectory();
+            SettingsPage.btnClearLegacyDir.Click += (s, e) => ClearCustomLegacyDirectory();
             SettingsPage.btnRecheckBranch.Click += (s, e) =>
             {
                 EnsureGameLocated(false);
@@ -482,64 +486,238 @@ namespace RealmLauncher
             }
 
             UpdateBranchBadge();
-            WarnIfLegacyBranch(found);
+            WarnIfLegacyEdition(found.LauncherExePath);
             return true;
+        }
+
+        /// <summary>Which build the launcher currently points at, whoever put it there.</summary>
+        private GameEdition ResolveActiveEdition()
+        {
+            var directory = GameEditions.ResolveInstallDirectory((txtConanExe.Text ?? string.Empty).Trim());
+
+            if (!string.IsNullOrEmpty(directory))
+            {
+                foreach (var install in GameEditions.All(_editions))
+                {
+                    if (string.Equals(install.InstallDirectory, directory, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return install.Edition;
+                    }
+                }
+
+                var probed = GameEditions.ProbeEdition(directory);
+                if (probed.HasValue)
+                {
+                    return probed.Value;
+                }
+            }
+
+            return _editions != null ? _editions.SteamBranchEdition : GameEdition.Enhanced;
         }
 
         private void UpdateBranchBadge()
         {
             var path = (txtConanExe.Text ?? string.Empty).Trim();
-            var info = SteamLocator.DescribeInstallFromExePath(path);
+            var customLegacy = _settings != null ? _settings.CustomLegacyGamePath : null;
 
-            if (info == null || string.IsNullOrWhiteSpace(info.BranchKey))
+            _editions = GameEditions.Detect(path, customLegacy);
+
+            var installDirectory = GameEditions.ResolveInstallDirectory(path);
+            var located = GameEditions.LooksLikeInstall(installDirectory);
+            var active = ResolveActiveEdition();
+            var dual = _editions.DualInstallReady;
+
+            SettingsPage.branchBadge.Visibility = located ? Visibility.Visible : Visibility.Collapsed;
+            SettingsPage.txtBranchBadge.Text = GameEditions.DisplayName(active).ToUpperInvariant();
+            SettingsPage.txtBranchBadge.Foreground = active == GameEdition.Enhanced
+                ? ThemeBrush("AccentBrush", "#D9903F")
+                : ThemeBrush("DangerBrush", "#E8776B");
+
+            if (!located)
             {
-                SettingsPage.branchBadge.Visibility = Visibility.Collapsed;
-                return;
+                SettingsPage.txtBranchState.Text = "Игра не найдена — версию определить не получается";
+                SettingsPage.txtBranchState.Foreground = ThemeBrush("TextSecondaryBrush", "#C3B091");
+                SettingsPage.txtBranchHint.Text = "Укажите путь к игре выше, и лаунчер определит версию сам.";
             }
-
-            SettingsPage.branchBadge.Visibility = Visibility.Visible;
-
-            if (info.IsLegacyBranch)
+            else if (active == GameEdition.Legacy)
             {
-                SettingsPage.txtBranchBadge.Text = info.BranchKey.ToUpperInvariant();
-                SettingsPage.txtBranchBadge.Foreground = ThemeBrush("DangerBrush", "#E8776B");
-                SettingsPage.txtGameHint.Text = "Внимание: выбрана бета-ветка Steam. Моды сервера рассчитаны на Enhanced.";
+                SettingsPage.txtGameHint.Text = "Внимание: выбрана версия Legacy. Моды сервера рассчитаны на Enhanced.";
 
-                SettingsPage.txtBranchState.Text = "Сейчас установлена Legacy — на наш сервер зайти не получится";
+                SettingsPage.txtBranchState.Text = "Сейчас выбрана Legacy — на наш сервер зайти не получится";
                 SettingsPage.txtBranchState.Foreground = ThemeBrush("DangerBrush", "#E8776B");
-                SettingsPage.txtBranchHint.Text =
-                    "REALM работает на Enhanced. Нажмите «Перейти на Enhanced» — откроются свойства игры " +
-                    "в Steam, там нужно выбрать бета-версию «Нет». Steam скачает другую сборку, это займёт время.";
+                SettingsPage.txtBranchHint.Text = dual
+                    ? "REALM работает на Enhanced. Нажмите «Перейти на Enhanced» — переключение мгновенное, " +
+                      "скачивать ничего не нужно."
+                    : "REALM работает на Enhanced. Нажмите «Перейти на Enhanced» — откроются свойства игры " +
+                      "в Steam, там нужно выбрать бета-версию «Нет». Steam скачает другую сборку, это займёт время.";
             }
             else
             {
-                SettingsPage.txtBranchBadge.Text = "ENHANCED";
-                SettingsPage.txtBranchBadge.Foreground = ThemeBrush("AccentBrush", "#D9903F");
-
-                SettingsPage.txtBranchState.Text = "Сейчас установлена Enhanced — версия нашего сервера";
+                SettingsPage.txtBranchState.Text = "Сейчас выбрана Enhanced — версия нашего сервера";
                 SettingsPage.txtBranchState.Foreground = ThemeBrush("SuccessBrush", "#7FC98A");
-                SettingsPage.txtBranchHint.Text =
-                    "Вернуться на Legacy можно ради других серверов: откроются свойства игры в Steam, " +
-                    "там нужно выбрать бета-версию conan-exiles-legacy. На REALM после этого зайти не выйдет.";
+                SettingsPage.txtBranchHint.Text = dual
+                    ? "Legacy тоже лежит на диске: переключиться на неё ради других серверов можно мгновенно, " +
+                      "и так же мгновенно вернуться."
+                    : "Вернуться на Legacy можно ради других серверов: откроются свойства игры в Steam, " +
+                      "там нужно выбрать бета-версию " + GameEditions.LegacyBranchKey +
+                      ". На REALM после этого зайти не выйдет.";
             }
 
-            SettingsPage.btnSwitchEnhanced.IsEnabled = info.IsLegacyBranch;
-            SettingsPage.btnSwitchLegacy.IsEnabled = !info.IsLegacyBranch;
+            // With no game path there is nothing to mark as chosen, whatever is on disk.
+            var chosen = located ? (GameEdition?)active : null;
+            UpdateEditionPathLabel(SettingsPage.txtEnhancedPath, _editions.Enhanced, chosen);
+            UpdateEditionPathLabel(SettingsPage.txtLegacyPath, _editions.Legacy, chosen);
+
+            // Setting the two builds up is the cheap way out of a 30-gigabyte download,
+            // so until it is done it gets the loud styling and the primary button.
+            if (dual)
+            {
+                SettingsPage.txtDualInstallState.Text =
+                    "Обе версии лежат на диске — переключение ничего не качает.";
+                SettingsPage.txtDualInstallState.Foreground = ThemeBrush("SuccessBrush", "#7FC98A");
+
+                // Nothing left to set up, and the wizard would only repeat the paths
+                // already listed above.
+                SettingsPage.btnDualInstall.Visibility = Visibility.Collapsed;
+                SettingsPage.btnRecheckBranch.Margin = new Thickness(0);
+
+                SettingsPage.dualInstallCallout.Background = Brushes.Transparent;
+                SettingsPage.dualInstallCallout.BorderThickness = new Thickness(0);
+                SettingsPage.dualInstallCallout.Padding = new Thickness(0, 2, 0, 0);
+            }
+            else
+            {
+                SettingsPage.txtDualInstallState.Text =
+                    "Переключение между версиями каждый раз качает игру целиком: Steam хранит " +
+                    "только выбранную ветку. Если положить обе версии рядом, переключение станет мгновенным.";
+                SettingsPage.txtDualInstallState.Foreground = ThemeBrush("AccentBrush", "#D9903F");
+                SettingsPage.btnDualInstall.Visibility = Visibility.Visible;
+                SettingsPage.btnRecheckBranch.Margin = new Thickness(8, 0, 0, 0);
+
+                SettingsPage.dualInstallCallout.Background = ThemeBrush("AccentSoftBrush", "#3355391E");
+                SettingsPage.dualInstallCallout.BorderThickness = new Thickness(1);
+                SettingsPage.dualInstallCallout.Padding = new Thickness(13, 11, 13, 12);
+            }
+
+            SettingsPage.btnSwitchEnhanced.IsEnabled = active != GameEdition.Enhanced;
+            SettingsPage.btnSwitchLegacy.IsEnabled = active != GameEdition.Legacy;
+
+            UpdateCustomLegacyPathLabel();
+        }
+
+        private void UpdateEditionPathLabel(TextBlock label, EditionInstall install, GameEdition? active)
+        {
+            if (install == null)
+            {
+                label.Text = "не найдена";
+                label.ToolTip = null;
+                label.Foreground = ThemeBrush("TextMutedBrush", "#8C7A5D");
+                return;
+            }
+
+            var marks = new List<string>();
+            if (install.Edition == active)
+            {
+                marks.Add("выбрана");
+            }
+            if (install.IsSteamManaged)
+            {
+                marks.Add("обновляется через Steam");
+            }
+            if (install.IsCustomPath)
+            {
+                marks.Add("указана вручную");
+            }
+
+            label.Text = install.InstallDirectory + (marks.Count > 0 ? "  (" + string.Join(", ", marks) + ")" : string.Empty);
+            label.ToolTip = install.InstallDirectory;
+            label.Foreground = install.Edition == active
+                ? ThemeBrush("TextPrimaryBrush", "#F6ECD9")
+                : ThemeBrush("TextSecondaryBrush", "#C3B091");
+        }
+
+        private void UpdateCustomLegacyPathLabel()
+        {
+            var custom = _settings != null ? _settings.CustomLegacyGamePath : null;
+            var hasCustom = !string.IsNullOrWhiteSpace(custom);
+
+            SettingsPage.txtCustomLegacyPath.Text = custom ?? string.Empty;
+            SettingsPage.txtCustomLegacyPath.ToolTip = custom;
+            SettingsPage.txtCustomLegacyPath.Visibility = hasCustom ? Visibility.Visible : Visibility.Collapsed;
+            SettingsPage.btnClearLegacyDir.Visibility = hasCustom ? Visibility.Visible : Visibility.Collapsed;
+            SettingsPage.btnBrowseLegacyDir.Content = hasCustom ? "Выбрать другую" : "Указать папку";
+        }
+
+        /// <summary>
+        /// With both builds on disk the switch is local: point the launcher at the other
+        /// folder. Otherwise there is nothing to switch to and Steam has to fetch it first.
+        /// </summary>
+        private void SwitchEdition(GameEdition target)
+        {
+            UpdateBranchBadge();
+
+            var install = _editions.Get(target);
+            if (install == null)
+            {
+                OpenSteamBranchSwitch(target);
+                return;
+            }
+
+            var name = GameEditions.DisplayName(target);
+            var activeDirectory = GameEditions.ResolveInstallDirectory((txtConanExe.Text ?? string.Empty).Trim());
+
+            if (string.Equals(activeDirectory, install.InstallDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                ShowInfo("Лаунчер уже работает с версией " + name + ".", "Версия игры");
+                return;
+            }
+
+            if (GameEditions.IsGameRunning())
+            {
+                ShowWarning(
+                    "Conan Exiles запущен. Закройте игру и переключите версию заново.",
+                    "Версия игры");
+                return;
+            }
+
+            txtConanExe.Text = install.ExePath;
+            if (_settings != null)
+            {
+                _settings.GameEdition = name;
+            }
+
+            SaveSettings();
+            UpdateBranchBadge();
+            ReapplyIntroMoviesForCurrentInstall();
+
+            AppendLog("Версия игры переключена на " + name + ": " + install.InstallDirectory);
+            ShowInfo(
+                "Лаунчер переключился на версию " + name + ".\n\n" + install.InstallDirectory +
+                (target == GameEdition.Legacy
+                    ? "\n\nНа REALM на этой версии зайти не получится — вернитесь на Enhanced перед игрой у нас."
+                    : string.Empty),
+                "Версия игры");
         }
 
         // Steam has no API for changing a branch, so take the player straight to
         // the one dialog where it can be done and say exactly what to click.
-        private void OpenSteamBranchSwitch(bool toLegacy)
+        private void OpenSteamBranchSwitch(GameEdition target)
         {
+            var toLegacy = target == GameEdition.Legacy;
+
             var steps = toLegacy
                 ? "1. В открывшемся окне Steam выберите слева «Бета-версии».\n" +
-                  "2. В списке выберите «conan-exiles-legacy».\n" +
+                  "2. В списке выберите «" + GameEditions.LegacyBranchKey + "».\n" +
                   "3. Дождитесь, пока Steam скачает сборку Legacy.\n\n" +
-                  "После этого на REALM зайти не получится — вернуть Enhanced можно той же кнопкой."
+                  "После этого на REALM зайти не получится — вернуть Enhanced можно той же кнопкой.\n\n" +
+                  "Чтобы не качать игру при каждом переключении, настройте две версии рядом — " +
+                  "кнопка «Настроить две версии» в этом же блоке."
                 : "1. В открывшемся окне Steam выберите слева «Бета-версии».\n" +
                   "2. В списке выберите «Нет» — это и есть Enhanced.\n" +
                   "3. Дождитесь, пока Steam скачает сборку Enhanced.\n\n" +
-                  "Скачивание занимает время: это другая сборка игры, а не патч.";
+                  "Скачивание занимает время: это другая сборка игры, а не патч.\n\n" +
+                  "Чтобы не качать игру при каждом переключении, настройте две версии рядом — " +
+                  "кнопка «Настроить две версии» в этом же блоке.";
 
             var answer = RealmDialog.Show(
                 this,
@@ -570,19 +748,226 @@ namespace RealmLauncher
             }
         }
 
-        private void WarnIfLegacyBranch(ConanInstallInfo info)
+        private void OpenDualInstallSetup()
         {
-            if (info == null || !info.IsLegacyBranch)
+            UpdateBranchBadge();
+
+            if (!_editions.DualInstallReady && string.IsNullOrEmpty(_editions.SteamManagedDirectory) &&
+                !GameEditions.LooksLikeInstall(GameEditions.ResolveInstallDirectory((txtConanExe.Text ?? string.Empty).Trim())))
+            {
+                ShowWarning(
+                    "Сначала укажите путь к Conan Exiles — без установленной игры настраивать нечего.",
+                    "Две версии игры");
+                return;
+            }
+
+            if (DualInstallDialog.Show(this, _editions, AppendLog))
+            {
+                // The folder moved, so the stored path has to follow it.
+                RepointAfterDualInstall();
+            }
+
+            UpdateBranchBadge();
+        }
+
+        private void RepointAfterDualInstall()
+        {
+            var path = (txtConanExe.Text ?? string.Empty).Trim();
+            if (!string.IsNullOrEmpty(path) && File.Exists(path))
             {
                 return;
             }
 
-            AppendLog("ВНИМАНИЕ: игра стоит на ветке '" + info.BranchKey + "', а не на Enhanced.");
+            var customLegacy = _settings != null ? _settings.CustomLegacyGamePath : null;
+            var state = GameEditions.Detect(path, customLegacy);
+            var install = state.Enhanced ?? state.Legacy;
+
+            if (install == null)
+            {
+                return;
+            }
+
+            txtConanExe.Text = install.ExePath;
+            AppendLog("Путь к игре обновлён после переименования: " + install.InstallDirectory);
+        }
+
+        private void BrowseCustomLegacyDirectory()
+        {
+            if (_settings == null)
+            {
+                return;
+            }
+
+            var dialog = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "Укажите папку с версией Legacy (в ней лежит ConanSandbox.exe)",
+                ShowNewFolderButton = false
+            };
+
+            var custom = _settings != null ? _settings.CustomLegacyGamePath : null;
+            if (!string.IsNullOrWhiteSpace(custom) && Directory.Exists(custom))
+            {
+                dialog.SelectedPath = custom;
+            }
+
+            if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+            {
+                return;
+            }
+
+            var selected = dialog.SelectedPath;
+
+            if (!GameEditions.LooksLikeInstall(selected))
+            {
+                ShowWarning(
+                    "В этой папке нет Conan Exiles.\n\nНужна папка, внутри которой лежит ConanSandbox.exe.",
+                    "Папка Legacy");
+                return;
+            }
+
+            if (GameEditions.ProbeEdition(selected) == GameEdition.Enhanced)
+            {
+                ShowWarning(
+                    "Это папка с версией Enhanced, а не Legacy.\n\nУкажите папку со сборкой Legacy.",
+                    "Папка Legacy");
+                return;
+            }
+
+            _settings.CustomLegacyGamePath = selected;
+            SaveSettings();
+            UpdateBranchBadge();
+            AppendLog("Папка Legacy указана вручную: " + selected);
+        }
+
+        private void ClearCustomLegacyDirectory()
+        {
+            if (_settings == null || string.IsNullOrWhiteSpace(_settings.CustomLegacyGamePath))
+            {
+                return;
+            }
+
+            // Pointing the launcher away from a folder it is currently using would leave
+            // it on a path it no longer knows about.
+            var cleared = _settings.CustomLegacyGamePath;
+            _settings.CustomLegacyGamePath = null;
+            SaveSettings();
+
+            var active = GameEditions.ResolveInstallDirectory((txtConanExe.Text ?? string.Empty).Trim());
+            if (string.Equals(active, GameEditions.ResolveInstallDirectory(Path.Combine(cleared, "ConanSandbox.exe")),
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                var state = GameEditions.Detect(null, null);
+                var fallback = state.Enhanced ?? state.Legacy;
+                if (fallback != null)
+                {
+                    txtConanExe.Text = fallback.ExePath;
+                }
+            }
+
+            UpdateBranchBadge();
+            AppendLog("Ручная папка Legacy сброшена.");
+        }
+
+        private void WarnIfLegacyEdition(string conanExePath)
+        {
+            var directory = GameEditions.ResolveInstallDirectory(conanExePath);
+            if (!GameEditions.LooksLikeInstall(directory) ||
+                GameEditions.ProbeEdition(directory) != GameEdition.Legacy)
+            {
+                return;
+            }
+
+            AppendLog("ВНИМАНИЕ: выбрана версия Legacy, а не Enhanced.");
             ShowWarning(
-                "В Steam для Conan Exiles выбрана ветка \"" + info.BranchKey + "\".\n\n" +
-                "Моды нашего сервера собраны под Enhanced и на этой ветке работать не будут.\n\n" +
-                "Откройте свойства игры в Steam и переключите бета-версию на «Нет».",
+                "Указанная папка содержит версию Legacy.\n\n" +
+                "Моды нашего сервера собраны под Enhanced и на этой версии работать не будут.\n\n" +
+                "Переключите версию в настройках, в блоке «Версия игры».",
                 "Не та версия игры");
+        }
+
+        /// <summary>
+        /// REALM runs on Enhanced, so Play starts that build even when the player last
+        /// used Legacy. Returns null when the launch should not go ahead.
+        /// </summary>
+        private string EnsureEnhancedForPlay(string gamePath)
+        {
+            UpdateBranchBadge();
+
+            if (ResolveActiveEdition() == GameEdition.Enhanced)
+            {
+                return gamePath;
+            }
+
+            var enhanced = _editions.Enhanced;
+            if (enhanced == null)
+            {
+                // Launching anyway means mods built for Enhanced against a Legacy game,
+                // so ask instead of starting a session that cannot work.
+                AppendLog("ВНИМАНИЕ: установлена версия Legacy, а REALM работает на Enhanced.");
+
+                var answer = RealmDialog.Show(
+                    this,
+                    "Не та версия игры",
+                    "Сейчас установлена версия Legacy, а наш сервер работает на Enhanced.\n\n" +
+                    "Моды сервера под Legacy не собраны: игра либо не подключится, либо " +
+                    "пожалуется на список модов.\n\n" +
+                    "Перейти на Enhanced? Откроются свойства игры в Steam с инструкцией.",
+                    RealmDialogButtons.Choice,
+                    RealmDialogType.Question,
+                    "Перейти на Enhanced",
+                    "Всё равно запустить");
+
+                if (answer == MessageBoxResult.No)
+                {
+                    AppendLog("Запуск продолжен на версии Legacy по выбору игрока.");
+                    return gamePath;
+                }
+
+                if (answer == MessageBoxResult.Yes)
+                {
+                    OpenSteamBranchSwitch(GameEdition.Enhanced);
+                }
+
+                return null;
+            }
+
+            txtConanExe.Text = enhanced.ExePath;
+            if (_settings != null)
+            {
+                _settings.GameEdition = GameEditions.DisplayName(GameEdition.Enhanced);
+            }
+
+            SaveSettings();
+            UpdateBranchBadge();
+            ReapplyIntroMoviesForCurrentInstall();
+
+            AppendLog("REALM работает на Enhanced — лаунчер переключился на эту версию: " + enhanced.InstallDirectory);
+            return enhanced.ExePath;
+        }
+
+        // The intro-movie files are renamed inside the install folder, so the setting has
+        // to be applied again whenever the launcher starts using a different one.
+        private void ReapplyIntroMoviesForCurrentInstall()
+        {
+            if (_settings == null || !_settings.SkipIntroMovies)
+            {
+                return;
+            }
+
+            var gamePath = (txtConanExe.Text ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(gamePath) || !File.Exists(gamePath))
+            {
+                return;
+            }
+
+            try
+            {
+                GameConfigService.SetIntroMoviesDisabled(gamePath, true, AppendLog);
+            }
+            catch (Exception ex)
+            {
+                AppendLog("Не удалось применить пропуск заставок: " + ex.Message);
+            }
         }
 
         private void BtnDetectGame_OnClick(object sender, RoutedEventArgs e)
@@ -608,7 +993,7 @@ namespace RealmLauncher
             if (dialog.ShowDialog(this) == true)
             {
                 txtConanExe.Text = dialog.FileName;
-                WarnIfLegacyBranch(SteamLocator.DescribeInstallFromExePath(dialog.FileName));
+                WarnIfLegacyEdition(dialog.FileName);
             }
         }
 
@@ -1418,6 +1803,7 @@ namespace RealmLauncher
             return brush ?? new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallbackHex));
         }
 
+
         private void NewsHyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
         {
             OpenExternalUrl(e.Uri.ToString(), "NewsLink");
@@ -1715,8 +2101,12 @@ namespace RealmLauncher
                     return;
                 }
 
-                var gamePath = (txtConanExe.Text ?? string.Empty).Trim();
-                WarnIfLegacyBranch(SteamLocator.DescribeInstallFromExePath(gamePath));
+                var gamePath = EnsureEnhancedForPlay((txtConanExe.Text ?? string.Empty).Trim());
+                if (gamePath == null)
+                {
+                    SetStatus("Нужна версия Enhanced.");
+                    return;
+                }
 
                 if (_cts != null)
                 {

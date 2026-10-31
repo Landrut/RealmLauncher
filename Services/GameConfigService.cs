@@ -454,16 +454,35 @@ namespace RealmLauncher.Services
 
         public static string ResolveLaunchExe(string conanExePath, bool useBattlEye)
         {
+            return ResolveLaunchExe(conanExePath, useBattlEye, null);
+        }
+
+        public static string ResolveLaunchExe(string conanExePath, bool useBattlEye, GameEdition? edition)
+        {
             var sandboxDirectory = ResolveSandboxDirectory(conanExePath);
             var binaries = Path.Combine(sandboxDirectory, "Binaries", "Win64");
 
-            var battlEye = Path.Combine(binaries, "ConanSandbox_BE.exe");
-            var shipping = Path.Combine(binaries, "ConanSandbox-Win64-Shipping.exe");
-            var legacyDirect = Path.Combine(binaries, "ConanSandbox.exe");
+            var battlEye = Path.Combine(binaries, GameEditions.BattlEyeExeName);
+            var shipping = Path.Combine(binaries, GameEditions.EnhancedExeName);
+            var legacyDirect = Path.Combine(binaries, GameEditions.LegacyExeName);
+
+            if (edition == null)
+            {
+                var installDirectory = Directory.GetParent(sandboxDirectory);
+                edition = installDirectory != null
+                    ? GameEditions.ProbeEdition(installDirectory.FullName)
+                    : null;
+            }
+
+            // Legacy ships the game itself as ConanSandbox.exe, Enhanced as the
+            // -Win64-Shipping build; a stale copy of the other must not win.
+            var preferred = edition == GameEdition.Legacy
+                ? new[] { legacyDirect, shipping }
+                : new[] { shipping, legacyDirect };
 
             var order = useBattlEye
-                ? new[] { battlEye, shipping, legacyDirect, conanExePath }
-                : new[] { shipping, legacyDirect, battlEye, conanExePath };
+                ? new[] { battlEye }.Concat(preferred).Concat(new[] { conanExePath })
+                : preferred.Concat(new[] { battlEye, conanExePath });
 
             return order.FirstOrDefault(File.Exists) ?? conanExePath;
         }
